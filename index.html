@@ -82,6 +82,11 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .xl-alert-more{font-size:11px;color:#999;padding:6px 4px;text-align:center}
 .xl-changed{background:#FFF3C4!important;box-shadow:inset 0 0 0 2px #F5B800;animation:xlflash 1.2s ease-in-out 2}
 @keyframes xlflash{0%,100%{background:#FFF3C4}50%{background:#FFE082}}
+.xl-tabs{display:inline-flex;gap:2px;margin-left:10px;background:#e8e5df;padding:2px;border-radius:6px}
+.xl-tab{font-family:inherit;font-size:12px;font-weight:600;padding:5px 14px;border:none;background:transparent;color:#666;cursor:pointer;border-radius:4px}
+.xl-tab:hover{color:#222}
+.xl-tab.on{background:#fff;color:#2E5CB8;box-shadow:0 1px 3px rgba(0,0,0,0.12)}
+.xl-note{margin-top:8px;padding:12px 14px;background:#F9E4E4;border:1px solid #000;border-top:none;font-size:11.5px;line-height:1.7;white-space:pre-wrap;color:#333}
 
 </style></head><body>
 <div id="root"></div>
@@ -145,6 +150,42 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
     return obj;
   }
 
+  // ===== 해외 단가 계산 (매크로 로직 동일) =====
+  // 만원(KRW) → 원 → ÷환율 → ×1.15 수수료 → 10달러 단위 올림
+  var USD_RATE=1440, USD_FEE=1.15;
+  function toUSD(manwon){
+    var n=num(manwon);
+    if(n==="" || n===0) return "";
+    var usd=(n*10000)/USD_RATE*USD_FEE;
+    return String(Math.ceil(usd/10)*10);
+  }
+  var OVERSEAS_HEADERS={n:"Creator(KOL)",s1:"Short 1Ch",s2:"Short 2Ch",s3:"Short 3Ch",fd:"Feed",lf:"Long",ig:"IG URL",tt:"TT URL",yt:"YT URL"};
+  var OVERSEAS_NOTE='* Remmitance fee excluded / USD\n'
+    +'* Creators without a cost range will follow the "1 channel = all channels" rule.\n'
+    +'* Short-form/Feed Campaigns: Includes 1 month of licensing plus complimentary Instagram/TikTok Story uploads (may vary by creator).\n'
+    +'* Feed Pricing: Priced at 60-70% of the Short-form collaboration fee. (Includes mirrored uploads to TikTok & YouTube feeds; varies by creator).\n'
+    +'* Long-form Pricing: 1.5x to 1.8x the Short-form fee. (Standard video length: 7-8 mins; Brand exposure: 2-3 mins).\n'
+    +'* Licensing Fees: Calculated as a percentage of the Short-form fee:\n'
+    +'1 Month: 20% (Included in basic package)/ 3 Months: 40% / 6 Months: 80% (Terms may vary depending on the creator.)\n'
+    +'* The default payment method is wire transfer.\n'
+    +'* If the collaborating company is based in a country without mutual VAT exemption with Korea, or if wire transfer is not available (e.g. PayPal), a 10% surcharge will be added to the agreed amount.';
+  var DOMESTIC_NOTE='* 참고 사항 *\n'
+    +'  - 모든 비용 VAT 별도 / 단위 만 원\n'
+    +'  - 숏폼 또는 피드 진행시, 라이선스 1개월 + 틱톡&인스타그램 스토리 서비스 제공 (크리에이터별로 상이)\n'
+    +'  - 피드 비용 = 숏폼 협업비의 60 ~ 70% (틱톡&유튜브 피드 미러링 업로드 서비스 / 크리에이터별로 상이)\n'
+    +'  - 롱폼 비용 = 숏폼 협업비의 1.5 ~ 1.8 배 (롱폼 기본 약 7~8분 중 2~3분 노출)\n'
+    +'  - 라이선스 비용 = 숏폼 협업비의 20% (1개월 / 3개월 = 40%, 6개월 = 80% / 크리에이터별로 상이)';
+  function currentNote(){ return activeTab==="us" ? OVERSEAS_NOTE : DOMESTIC_NOTE; }
+
+  // 국내 데이터 → 해외 데이터 변환 (병합정보 유지)
+  function toOverseasData(arr){
+    return (arr||[]).map(function(r){
+      var o={id:r.id, n:r.n, s1:toUSD(r.s1), s2:toUSD(r.s2), s3:toUSD(r.s3), fd:toUSD(r.fd), lf:toUSD(r.lf), ig:r.ig, tt:r.tt, yt:r.yt};
+      if(r._m) o._m=JSON.parse(JSON.stringify(r._m));
+      return o;
+    });
+  }
+
   function loadData(){
     try{
       var s=localStorage.getItem(LS_KEY);
@@ -177,8 +218,12 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
   function cellText(row,col){ return col.type==="num"?fmtNum(row[col.key]):String(row[col.key]==null?"":row[col.key]); }
   function cellRaw(row,col){ if(col.type==="num"){var n=num(row[col.key]);return n===""?"":String(n);} return String(row[col.key]==null?"":row[col.key]); }
 
+  var activeTab="kr"; // "kr" | "us"
+  function colLabel(c){ return activeTab==="us" ? (OVERSEAS_HEADERS[c.key]||c.label) : c.label; }
+  function currentData(){ return activeTab==="us" ? toOverseasData(data) : data; }
   function viewRows(){
-    var rows=data.map(function(r,i){ return {row:r, di:i}; });
+    var src=currentData();
+    var rows=src.map(function(r,i){ return {row:r, di:i}; });
     if(searchQ){ var q=searchQ.toLowerCase(); rows=rows.filter(function(o){ return String(o.row.n||"").toLowerCase().indexOf(q)>=0; }); }
     if(sortState.key&&sortState.dir){
       var col=null; COLS.forEach(function(c){ if(c.key===sortState.key) col=c; });
@@ -224,6 +269,18 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
     "틱톡":"tt","tiktok":"tt",
     "유튜브":"yt","youtube":"yt"
   };
+  // 안내문/참고사항 행 판별 (크리에이터 이름이 아님)
+  function isNoteRow(name){
+    var t=String(name||"").replace(/\s/g,"");
+    if(!t) return true;
+    if(t.indexOf("참고사항")>=0) return true;
+    if(t.indexOf("VAT")>=0 || t.indexOf("vat")>=0) return true;
+    if(/^[*※·\-–—]/.test(t)) return true;           // 기호로 시작
+    if(t.indexOf("Remmitance")>=0 || t.indexOf("Remittance")>=0) return true;
+    if(t.length>25) return true;                      // 지나치게 긴 문자열은 이름이 아님
+    return false;
+  }
+
   function csvToData(text){
     var rows=parseCSV(text);
     if(!rows.length) return null;
@@ -252,16 +309,20 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
       }
     }
     var out=[];
+    var noteText="";
     for(var i=hi+1;i<rows.length;i++){
       var rr=rows[i]; if(!rr) continue;
       var obj={id:"", n:"",s1:"",s2:"",s3:"",fd:"",lf:"",ig:"",tt:"",yt:""};
       colMap.forEach(function(key,ci){ if(key){ var v=String(rr[ci]==null?"":rr[ci]).trim(); if(key==="s1"||key==="s2"||key==="s3"||key==="fd"||key==="lf"){ v=v.replace(/[^0-9]/g,""); } obj[key]=v; } });
       if(!obj.n) continue;
+      // 안내문/참고사항 행은 크리에이터가 아님 → 별도 보관
+      if(isNoteRow(obj.n)){ if(!noteText) noteText=String(rr.join(" ")).replace(/\s*,\s*/g," ").trim(); continue; }
       obj.id="sheet_"+obj.n.replace(/\s/g,"_")+"_"+i;
       autoMerge(obj); // 시트 병합 자동 반영
       out.push(obj);
     }
     out._stamp=stamp; // 시트의 수정시각(또는 번호)
+    out._note=noteText;
     return out;
   }
 
@@ -456,7 +517,11 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
     // 툴바
     h.push('<div class="xl-toolbar"><div class="xl-tleft">');
     h.push('<span class="xl-title">AG-ENT 크리에이터 단가표</span>');
-    h.push('<span class="xl-count">'+data.length+'명'+(searchQ?(' · 검색 '+vr.length):'')+'</span>');
+    h.push('<span class="xl-tabs">');
+    h.push('<button class="xl-tab'+(activeTab==="kr"?" on":"")+'" data-tab="kr">국내 (만원)</button>');
+    h.push('<button class="xl-tab'+(activeTab==="us"?" on":"")+'" data-tab="us">해외 (USD)</button>');
+    h.push('</span>');
+    h.push('<span class="xl-count">'+data.length+'명'+(searchQ?(' · 검색 '+vr.length):'')+(activeTab==="us"?' · 환율 '+USD_RATE.toLocaleString():'')+'</span>');
     h.push('</div><div class="xl-tright">');
     h.push('<input id="xl-search" class="xl-search" placeholder="크리에이터명 검색" value="'+esc(searchQ)+'">');
     h.push('<button class="xl-btn xl-btn-p" id="xl-copy">복사</button>');
@@ -490,7 +555,7 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
       var inSel=selContains(-1,ci);
       var arrow=(sortState.key===c.key)?(sortState.dir>0?'▲':(sortState.dir<0?'▼':'⇅')):'⇅';
       h.push('<th class="xl-th'+(inSel?' xl-sel':'')+'" data-r="-1" data-c="'+ci+'">'
-        +'<span class="xl-thlabel">'+esc(c.label)+'</span>'
+        +'<span class="xl-thlabel">'+esc(colLabel(c))+'</span>'
         +'<span class="xl-sort" data-sort="'+c.key+'" title="정렬">'+arrow+'</span></th>');
     });
     h.push('</tr></thead>');
@@ -535,6 +600,7 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
     if(vr.length===0) h.push('<tr><td class="xl-empty" colspan="'+(COLS.length+1)+'">표시할 데이터가 없습니다.</td></tr>');
     h.push('</tbody></table></div>');
     // 상태바
+    h.push('<div class="xl-note">'+esc(currentNote())+'</div>');
     h.push('<div class="xl-status"><span>'+(sel?selDesc():'셀·행·열을 선택하세요 (우클릭 = 메뉴)')+'</span>');
     h.push('<span class="xl-hint">드래그 선택 → 우클릭/Ctrl+C 복사 → 메일·엑셀 붙여넣기</span></div>');
     h.push('</div>');
@@ -562,6 +628,15 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
     byId("xl-xlsx").onclick=function(){ downloadXLSX(); };
     byId("xl-log").onclick=function(){ showLogModal(); };
     var ad=byId("xl-alert-demo"); if(ad) ad.onclick=function(){ showMasterAlert(); };
+    var tabs=root.querySelectorAll(".xl-tab");
+    for(var ti=0;ti<tabs.length;ti++){
+      tabs[ti].onclick=function(){
+        var t=this.getAttribute("data-tab");
+        if(t===activeTab) return;
+        activeTab=t; sel=null; editingCell=null; render();
+        notify(t==="us"?("해외 단가 (USD · 환율 "+USD_RATE.toLocaleString()+" · 수수료 15% · 10달러 단위 올림)"):"국내 단가 (만원)");
+      };
+    }
     var rf=byId("xl-refresh"); if(rf) rf.onclick=function(){ notify("마스터 시트 확인 중..."); fetchSheet(false, true); };
     var rs=byId("xl-reset"); if(rs) rs.onclick=function(){ resetToSheet(); };
     byId("xl-undo").onclick=undo;
@@ -621,6 +696,7 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
         sel={r1:anchor.r,c1:anchor.c,r2:r,c2:c}; updateSelDom();
       };
       td.ondblclick=function(){
+        if(activeTab==="us"){ notify("해외 단가는 국내 단가에서 자동 계산됩니다. 국내 탭에서 수정하세요."); return; }
         var r=parseInt(this.getAttribute("data-r"),10), c=parseInt(this.getAttribute("data-c"),10);
         if(r<0) return;
         editingCell={r:r,c:c}; render();
@@ -929,6 +1005,12 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
       }
       tsvLines.push(tcells.join("\t")); htmlRows.push('<tr>'+hc.join("")+'</tr>');
     }
+    // 헤더부터 전체를 복사한 경우 안내문도 함께
+    if(includeHeader && c1===0 && c2===COLS.length-1 && r2>=vr.length-1){
+      var nt=currentNote();
+      tsvLines.push(""); tsvLines.push(nt.replace(/\n/g," "));
+      htmlRows.push('<tr><td colspan="'+COLS.length+'" style="border:1px solid '+BORDER+';background:#F9E4E4;padding:8px 10px;font-family:Malgun Gothic,sans-serif;font-size:11px;white-space:pre-wrap;">'+esc(nt)+'</td></tr>');
+    }
     var tsv=tsvLines.join("\n"), html='<table style="border-collapse:collapse;">'+htmlRows.join("")+'</table>';
     copyDual(html, tsv, function(ok){ notify(ok?('복사 완료 ('+tsvLines.length+'행 × '+(c2-c1+1)+'열'+(includeHeader?', 헤더 포함':'')+'). 붙여넣기(Ctrl+V)'):'복사 실패'); });
   }
@@ -956,9 +1038,9 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
   // ===== 3. 엑셀(.xls) 다운로드 — SpreadsheetML(XML) 방식, 라이브러리 불필요 =====
   function downloadXLSX(){
     var xmlRows=[];
-    var hc=COLS.map(function(c){ return '<Cell ss:StyleID="hdr"><Data ss:Type="String">'+xesc(c.label)+'</Data></Cell>'; }).join("");
+    var hc=COLS.map(function(c){ return '<Cell ss:StyleID="hdr"><Data ss:Type="String">'+xesc(colLabel(c))+'</Data></Cell>'; }).join("");
     xmlRows.push('<Row>'+hc+'</Row>');
-    data.forEach(function(row){
+    currentData().forEach(function(row){
       var cells=COLS.map(function(c){
         if(c.type==="num"){ var n=num(row[c.key]); return n===""?'<Cell ss:StyleID="d"/>':'<Cell ss:StyleID="d"><Data ss:Type="Number">'+n+'</Data></Cell>'; }
         var v=String(row[c.key]==null?"":row[c.key]);
@@ -966,6 +1048,9 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
       }).join("");
       xmlRows.push('<Row>'+cells+'</Row>');
     });
+    // 안내문 행 (데이터 마지막 다음, A열 병합)
+    xmlRows.push('<Row/>');
+    xmlRows.push('<Row><Cell ss:MergeAcross="'+(COLS.length-1)+'" ss:StyleID="note"><Data ss:Type="String">'+xesc(currentNote())+'</Data></Cell></Row>');
     var cols=COLS.map(function(c){ return '<Column ss:Width="'+Math.round(c.w*0.75)+'"/>'; }).join("");
     var xml='<?xml version="1.0" encoding="UTF-8"?>\n'
       +'<?mso-application progid="Excel.Sheet"?>\n'
@@ -974,11 +1059,12 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
       +'<Style ss:ID="hdr"><Interior ss:Color="#FCE5CD" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders>'+borderXML()+'</Borders></Style>'
       +'<Style ss:ID="d"><Font ss:Bold="1"/><Alignment ss:Horizontal="Center"/><Borders>'+borderXML()+'</Borders></Style>'
       +'<Style ss:ID="t"><Borders>'+borderXML()+'</Borders></Style>'
+      +'<Style ss:ID="note"><Interior ss:Color="#F4CCCC" ss:Pattern="Solid"/><Alignment ss:Vertical="Top" ss:WrapText="1"/><Borders>'+borderXML()+'</Borders></Style>'
       +'</Styles>'
-      +'<Worksheet ss:Name="크리에이터 단가"><Table>'+cols+xmlRows.join("")+'</Table></Worksheet>'
+      +'<Worksheet ss:Name="'+(activeTab==="us"?"Creator List":"크리에이터 단가")+'"><Table>'+cols+xmlRows.join("")+'</Table></Worksheet>'
       +'</Workbook>';
     var blob=new Blob(["\ufeff"+xml],{type:"application/vnd.ms-excel;charset=utf-8"});
-    var fname="AG-ENT_크리에이터_단가표_"+nowStr().replace(/[: ]/g,"").slice(0,12)+".xls";
+    var fname=(activeTab==="us"?"AG-ENT_Creator_List_USD_":"AG-ENT_크리에이터_단가표_")+nowStr().replace(/[: ]/g,"").slice(0,12)+".xls";
     downloadBlob(blob, fname);
     notify("엑셀 파일 다운로드 ("+data.length+"명)");
   }
