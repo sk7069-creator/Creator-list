@@ -18,11 +18,11 @@ var COLS=[
   {key:"tt", label:"틱톡",        w:220, type:"text", center:true, bold:false, link:true},
   {key:"yt", label:"유튜브",      w:220, type:"text", center:true, bold:false, link:true}
 ];
-loadColW();
+// loadColW() / loadData()는 07-main.js에서 호출 (03-core.js 로드 후)
 var HEADER_BG="#FCE5CD", BORDER="#000", LINK="#1155cc";
 var ALPHA="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-var data=loadData();
+var data=[];  // 07-main.js에서 loadData()로 채움
 var hist=[], future=[];
 var sortState={key:null, dir:0};
 var searchQ="";
