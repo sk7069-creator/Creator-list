@@ -12,19 +12,19 @@ function render(){
   h.push('<button class="xl-tab'+(activeTab==="us"?" on":"")+'" data-tab="us">해외 (USD)</button>');
   h.push('</span>');
   h.push('<span class="xl-count">'+data.length+'명'+(searchQ?(' · 검색 '+vr.length):'')+(activeTab==="us"?' · 환율 '+USD_RATE.toLocaleString():'')+'</span>');
+  h.push('<span class="xl-undogroup">');
+  h.push('<button class="xl-ubtn" id="xl-undo" title="실행취소 (Ctrl+Z)">↶</button>');
+  h.push('<button class="xl-ubtn" id="xl-redo" title="다시실행 (Ctrl+Y)">↷</button>');
+  h.push('</span>');
   h.push('</div><div class="xl-tright">');
   h.push('<input id="xl-search" class="xl-search" placeholder="크리에이터명 검색" value="'+esc(searchQ)+'">');
   h.push('<button class="xl-btn xl-btn-p" id="xl-copy">복사</button>');
   h.push('<button class="xl-btn" id="xl-copyall">전체 복사</button>');
   h.push('<button class="xl-btn" id="xl-xlsx">엑셀 다운로드</button>');
-  h.push('<button class="xl-btn" id="xl-log">수정 기록'+(editLog.length?' '+editLog.length:'')+'</button>');
-  h.push('<button class="xl-btn" id="xl-alert-demo" title="마스터 시트 변경 알림 예시">🔔 알림 예시</button>');
   h.push('<button class="xl-btn" id="xl-refresh" title="마스터 시트에서 최신 내용 다시 확인">↻ 시트 확인</button>');
   h.push('<button class="xl-btn" id="xl-reset" title="도구에서 수정한 내용을 버리고 마스터 시트 상태로 되돌립니다">초기화</button>');
-    h.push('<a class="xl-btn xl-btn-link" href="graph.html" title="단가 변동 추이 보기">📈 변동 추이</a>');
-    h.push('<a class="xl-btn xl-btn-link" href="/api/auth/logout" title="로그아웃">로그아웃</a>');
-  h.push('<button class="xl-btn" id="xl-undo" title="Ctrl+Z">↶</button>');
-  h.push('<button class="xl-btn" id="xl-redo" title="Ctrl+Y">↷</button>');
+  h.push('<a class="xl-btn xl-btn-link" href="graph.html" title="단가 변동 추이 보기">📈 변동 추이</a>');
+  h.push('<a class="xl-btn xl-btn-link" href="/api/auth/logout" title="로그아웃">로그아웃</a>');
   h.push('</div></div>');
   // 표
   h.push('<div class="xl-scroll"><table class="xl-table" style="width:'+totalW+'px"><colgroup><col style="width:40px">');
@@ -117,9 +117,7 @@ function bind(vr){
   byId("xl-search").oninput=function(e){ searchQ=e.target.value; sel=null; render(); var s=byId("xl-search"); if(s){s.focus(); var v=s.value; s.value=""; s.value=v;} };
   byId("xl-copy").onclick=function(){ copySelection(vr); };
   byId("xl-copyall").onclick=function(){ sel={r1:-1,c1:0,r2:vr.length-1,c2:COLS.length-1}; copySelection(vr); };
-  byId("xl-xlsx").onclick=function(){ downloadXLSX(); };
-  byId("xl-log").onclick=function(){ showLogModal(); };
-  var ad=byId("xl-alert-demo"); if(ad) ad.onclick=function(){ showMasterAlert(); };
+  byId("xl-xlsx").onclick=function(){ showSnapshotModal(); };
   var tabs=root.querySelectorAll(".xl-tab");
   for(var ti=0;ti<tabs.length;ti++){
     tabs[ti].onclick=function(){

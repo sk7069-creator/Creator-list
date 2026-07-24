@@ -51,3 +51,7 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .g-num.up{color:#c0392b;font-weight:600}
 .g-num.down{color:#1a7a3a;font-weight:600}
 .g-who{color:#8a8375;font-size:11px}
+.g-daterow{display:flex;align-items:center;gap:6px;font-size:12px;color:#999}
+.g-quick{display:flex;gap:4px;margin-top:6px}
+.g-qb{font-family:inherit;font-size:11px;padding:4px 9px;border:1px solid #e0dcd4;background:#fff;color:#777;border-radius:4px;cursor:pointer}
+.g-qb:hover{border-color:#2E5CB8;color:#2E5CB8}

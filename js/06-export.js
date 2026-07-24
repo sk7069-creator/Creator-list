@@ -83,11 +83,15 @@ function fallbackCopy(html, tsv, cb){
 }
 
 // ===== 3. 엑셀(.xls) 다운로드 — SpreadsheetML(XML) 방식, 라이브러리 불필요 =====
-function downloadXLSX(){
+function downloadXLSX(snapData, snapLabel){
+  // snapData: 기준일 스냅샷 (없으면 현재 데이터)
+  var src = snapData
+    ? (activeTab === "us" ? toOverseasData(snapData) : snapData)
+    : currentData();
   var xmlRows=[];
   var hc=COLS.map(function(c){ return '<Cell ss:StyleID="hdr"><Data ss:Type="String">'+xesc(colLabel(c))+'</Data></Cell>'; }).join("");
   xmlRows.push('<Row>'+hc+'</Row>');
-  currentData().forEach(function(row){
+  src.forEach(function(row){
     var cells=COLS.map(function(c){
       if(c.type==="num"){ var n=num(row[c.key]); return n===""?'<Cell ss:StyleID="d"/>':'<Cell ss:StyleID="d"><Data ss:Type="Number">'+n+'</Data></Cell>'; }
       var v=String(row[c.key]==null?"":row[c.key]);
@@ -111,9 +115,11 @@ function downloadXLSX(){
     +'<Worksheet ss:Name="'+(activeTab==="us"?"Creator List":"크리에이터 단가")+'"><Table>'+cols+xmlRows.join("")+'</Table></Worksheet>'
     +'</Workbook>';
   var blob=new Blob(["\ufeff"+xml],{type:"application/vnd.ms-excel;charset=utf-8"});
-  var fname=(activeTab==="us"?"AG-ENT_Creator_List_USD_":"AG-ENT_크리에이터_단가표_")+nowStr().replace(/[: ]/g,"").slice(0,12)+".xls";
+  var base = activeTab==="us" ? "AG-ENT_Creator_List_USD_" : "AG-ENT_크리에이터_단가표_";
+  var stampPart = snapLabel ? (snapLabel.replace(/-/g,"") + "_기준") : nowStr().replace(/[: ]/g,"").slice(0,12);
+  var fname = base + stampPart + ".xls";
   downloadBlob(blob, fname);
-  notify("엑셀 파일 다운로드 ("+data.length+"명)");
+  notify(snapLabel ? ("엑셀 다운로드 · "+snapLabel+" 23:59 기준 ("+src.length+"명)") : ("엑셀 파일 다운로드 ("+src.length+"명)"));
 }
 function borderXML(){ return ['Left','Top','Right','Bottom'].map(function(p){return '<Border ss:Position="'+p+'" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>';}).join(""); }
 function xesc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }

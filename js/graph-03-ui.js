@@ -122,8 +122,15 @@ function gRender() {
   h.push('</select></div>');
 
   h.push('<div class="g-ctl"><label>기간</label>');
+  h.push('<div class="g-daterow">');
   h.push('<input type="date" id="g-from" value="' + fmtDate(gState.from) + '"> ~ ');
   h.push('<input type="date" id="g-to" value="' + fmtDate(gState.to) + '">');
+  h.push('</div>');
+  h.push('<div class="g-quick">');
+  [['7', '최근 7일'], ['30', '최근 30일'], ['90', '최근 3개월'], ['all', '전체']].forEach(function (q) {
+    h.push('<button class="g-qb" data-quick="' + q[0] + '">' + q[1] + '</button>');
+  });
+  h.push('</div>');
   h.push('</div>');
 
   h.push('</div>');
@@ -231,6 +238,28 @@ function gBind() {
       var nm = this.getAttribute("data-rm");
       var idx = gState.picked.indexOf(nm);
       if (idx >= 0) { gState.picked.splice(idx, 1); gRender(); }
+    };
+  }
+
+  var qbs = gRoot.querySelectorAll(".g-qb");
+  for (var q = 0; q < qbs.length; q++) {
+    qbs[q].onclick = function () {
+      var v = this.getAttribute("data-quick");
+      var now = new Date();
+      var end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      if (histRows.length) {
+        var last = histRows[histRows.length - 1].t;
+        if (last > end) end = new Date(last.getTime() + 60000);
+      }
+      if (v === "all") {
+        gState.from = histRows.length ? new Date(histRows[0].t.getTime()) : new Date(now.getTime() - 30 * 86400000);
+        gState.from.setHours(0, 0, 0, 0);
+      } else {
+        gState.from = new Date(now.getTime() - parseInt(v, 10) * 86400000);
+        gState.from.setHours(0, 0, 0, 0);
+      }
+      gState.to = end;
+      gRender();
     };
   }
 
