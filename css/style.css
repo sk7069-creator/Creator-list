@@ -84,3 +84,4 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .xl-tab:hover{color:#222}
 .xl-tab.on{background:#fff;color:#2E5CB8;box-shadow:0 1px 3px rgba(0,0,0,0.12)}
 .xl-note{margin-top:8px;padding:12px 14px;background:#F9E4E4;border:1px solid #000;border-top:none;font-size:11.5px;line-height:1.7;white-space:pre-wrap;color:#333}
+.xl-btn-link{text-decoration:none;display:inline-flex;align-items:center}
