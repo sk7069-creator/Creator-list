@@ -114,7 +114,38 @@ function selDesc(){
 
 function bind(vr){
   var byId=function(id){return document.getElementById(id);};
-  byId("xl-search").oninput=function(e){ searchQ=e.target.value; sel=null; render(); var s=byId("xl-search"); if(s){s.focus(); var v=s.value; s.value=""; s.value=v;} };
+  var searchEl = byId("xl-search");
+  if (searchEl) {
+    var composing = false;
+    var searchTimer = null;
+
+    function runSearch(val) {
+      searchQ = val;
+      sel = null;
+      render();
+      // 다시 그린 뒤 입력창에 포커스와 커서 위치 복원
+      var s = byId("xl-search");
+      if (s) {
+        s.focus();
+        try { s.setSelectionRange(s.value.length, s.value.length); } catch (e) {}
+      }
+    }
+
+    // 한글 조합 시작/종료 감지
+    searchEl.addEventListener("compositionstart", function () { composing = true; });
+    searchEl.addEventListener("compositionend", function (e) {
+      composing = false;
+      clearTimeout(searchTimer);
+      runSearch(e.target.value);
+    });
+
+    searchEl.oninput = function (e) {
+      if (composing) return;          // 조합 중에는 실행하지 않음
+      var val = e.target.value;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () { runSearch(val); }, 120);
+    };
+  }
   byId("xl-copy").onclick=function(){ copySelection(vr); };
   byId("xl-copyall").onclick=function(){ sel={r1:-1,c1:0,r2:vr.length-1,c2:COLS.length-1}; copySelection(vr); };
   byId("xl-xlsx").onclick=function(){ showSnapshotModal(); };
