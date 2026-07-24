@@ -4,7 +4,8 @@ var SEED = (typeof SEED_DATA !== "undefined" && Array.isArray(SEED_DATA)) ? SEED
 var LS_KEY="agent_excel_roster_v1", LS_W="agent_excel_colw_v1", LS_LOG="agent_excel_log_v1";
 var LS_SNAP="agent_excel_sheetsnap_v1"; // 마지막으로 확인한 시트 스냅샷 (변경 감지용)
 // ===== 구글 시트 연동 =====
-var SHEET_CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTzUU4epCiIOeNcIWiRKpS7YHau_e4Lxr7RQunedSF0aD0fNkBw2yEz9SindNPHQhfzNpJsphOgHdla/pub?gid=0&single=true&output=csv";
+// 시트 주소는 서버(api/sheet.js)에만 존재 — 브라우저에 노출되지 않음
+var SHEET_CSV_URL="/api/sheet?which=current";
 var SHEET_POLL_MS=15000; // 15초마다 시트 변경 확인
 
 var COLS=[

@@ -1,10 +1,10 @@
 /* AG-ENT 단가 이력 — 데이터 로드 및 파싱 */
 
 // 이력 시트 CSV (자동 기록됨: 일시 | 크리에이터 | 항목 | 이전값 | 변경값 | 수정자)
-var HIST_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT0DKy6jqqd7KD5MiKvc0xDdxNbsIsii4GkbN5ReRjGqSgn4sFm6bHBi4a3KJrrr1HbO8Qy8NMg9XCj/pub?gid=0&single=true&output=csv";
+var HIST_CSV_URL = "/api/sheet?which=history";
 
 // 현재 단가 시트 CSV (기준 시점 계산용)
-var CUR_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzUU4epCiIOeNcIWiRKpS7YHau_e4Lxr7RQunedSF0aD0fNkBw2yEz9SindNPHQhfzNpJsphOgHdla/pub?gid=0&single=true&output=csv";
+var CUR_CSV_URL = "/api/sheet?which=current";
 
 var FIELDS = ["숏폼 1채널", "2채널", "3채널", "피드", "롱폼"];
 var FIELD_KEY = { "숏폼 1채널": "s1", "2채널": "s2", "3채널": "s3", "피드": "fd", "롱폼": "lf" };

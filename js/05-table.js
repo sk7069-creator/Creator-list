@@ -22,6 +22,7 @@ function render(){
   h.push('<button class="xl-btn" id="xl-refresh" title="마스터 시트에서 최신 내용 다시 확인">↻ 시트 확인</button>');
   h.push('<button class="xl-btn" id="xl-reset" title="도구에서 수정한 내용을 버리고 마스터 시트 상태로 되돌립니다">초기화</button>');
     h.push('<a class="xl-btn xl-btn-link" href="graph.html" title="단가 변동 추이 보기">📈 변동 추이</a>');
+    h.push('<a class="xl-btn xl-btn-link" href="/api/auth/logout" title="로그아웃">로그아웃</a>');
   h.push('<button class="xl-btn" id="xl-undo" title="Ctrl+Z">↶</button>');
   h.push('<button class="xl-btn" id="xl-redo" title="Ctrl+Y">↷</button>');
   h.push('</div></div>');

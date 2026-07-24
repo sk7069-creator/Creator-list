@@ -88,7 +88,7 @@ function gRender() {
   // 헤더
   h.push('<div class="g-head">');
   h.push('<div class="g-title">AG-ENT 단가 변동 추이</div>');
-  h.push('<a class="g-back" href="index.html">← 단가표로</a>');
+  h.push('<span><a class="g-back" href="index.html">← 단가표로</a> <a class="g-back" href="/api/auth/logout" style="margin-left:14px">로그아웃</a></span>');
   h.push('</div>');
 
   if (!gState.ready) {
