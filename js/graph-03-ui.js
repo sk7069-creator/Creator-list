@@ -1,37 +1,50 @@
 /* AG-ENT 단가 이력 — 화면 구성 */
 
 var gRoot = document.getElementById("groot");
+
 var gState = {
-  mode: "each",        // each(개별) | multi(선택) | all(전체)
-  unit: "day",         // day | week | month | year
+  // 상단: 보기 방식
+  mode: "each",          // each(개별) | multi(선택 비교) | all(전체 평균)
+  unit: "day",           // day | week | month | year
   field: "숏폼 1채널",
-  picked: [],          // multi 모드에서 선택한 크리에이터
-  from: null, to: null,
-  day: null,           // 변동 내역 날짜 필터 (null=전체)
+
+  // 중단: 그래프 대상 + 그래프 기간
+  picked: [],            // 선택한 크리에이터
+  gFrom: null, gTo: null,
+
+  // 하단: 변동 내역 전용 필터
+  logFrom: null, logTo: null,
+  logDay: null,          // 특정 날짜만 (null=전체)
+  logNames: [],          // 크리에이터 필터 (비어있으면 전체)
+
   ready: false
 };
 
 function gInit() {
   gRender();
   Promise.all([
-    fetchCSV(HIST_CSV_URL).then(parseHistory).catch(function (e) { loadErr = "이력 시트를 불러오지 못했습니다."; return []; }),
-    fetchCSV(CUR_CSV_URL).then(parseCurrent).catch(function (e) { loadErr = "단가 시트를 불러오지 못했습니다."; return []; })
+    fetchCSV(HIST_CSV_URL).then(parseHistory).catch(function () { loadErr = "이력 시트를 불러오지 못했습니다."; return []; }),
+    fetchCSV(CUR_CSV_URL).then(parseCurrent).catch(function () { loadErr = "단가 시트를 불러오지 못했습니다."; return []; })
   ]).then(function (res) {
-    histRows = res[0]; curData = res[1];
-    // 기본 기간: 이력 전체 (없으면 최근 30일)
+    histRows = res[0];
+    curData = res[1];
+
     var now = new Date();
     var todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    // 이력에 오늘 이후 기록이 있으면(시간대 차이) 그것까지 포함
+    var start, end = todayEnd;
+
     if (histRows.length) {
       var last = histRows[histRows.length - 1].t;
-      gState.from = new Date(histRows[0].t.getTime());
-      gState.from.setHours(0, 0, 0, 0);
-      gState.to = last > todayEnd ? new Date(last.getTime() + 60000) : todayEnd;
+      if (last > end) end = new Date(last.getTime() + 60000);
+      start = new Date(histRows[0].t.getTime());
+      start.setHours(0, 0, 0, 0);
     } else {
-      gState.from = new Date(now.getTime() - 30 * 86400000);
-      gState.from.setHours(0, 0, 0, 0);
-      gState.to = todayEnd;
+      start = new Date(now.getTime() - 30 * 86400000);
+      start.setHours(0, 0, 0, 0);
     }
+
+    gState.gFrom = start;   gState.gTo = end;
+    gState.logFrom = start; gState.logTo = end;
     gState.ready = true;
     gRender();
   });
@@ -43,21 +56,19 @@ function fmtDate(d) {
   return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
 }
 
-// 크리에이터 목록 (이력에 등장한 사람 + 현재 명단)
 function allNames() {
   var set = {}, out = [];
   curData.forEach(function (c) { if (!set[c.n]) { set[c.n] = 1; out.push(c.n); } });
   histRows.forEach(function (h) { if (!set[h.name]) { set[h.name] = 1; out.push(h.name); } });
-  return out;
+  return out.sort(function (a, b) { return a.localeCompare(b, "ko"); });
 }
 
-// 시계열 생성
+// ── 그래프용 시계열 ──
 function buildSeries() {
-  var buckets = makeBuckets(gState.from, gState.to, gState.unit);
+  var buckets = makeBuckets(gState.gFrom, gState.gTo, gState.unit);
   var series = [];
 
   if (gState.mode === "all") {
-    // 전체 평균
     var pts = buckets.map(function (b) {
       var sum = 0, cnt = 0;
       curData.forEach(function (c) {
@@ -72,38 +83,43 @@ function buildSeries() {
       ? (gState.picked.length ? [gState.picked[0]] : [])
       : gState.picked;
     names.slice(0, 8).forEach(function (nm) {
-      var pts = buckets.map(function (b) {
-        return { x: b.key, y: priceAt(nm, gState.field, b.end) };
-      });
+      var pts = buckets.map(function (b) { return { x: b.key, y: priceAt(nm, gState.field, b.end) }; });
       series.push({ label: nm, points: pts });
     });
   }
   return { series: series, buckets: buckets };
 }
 
+// ── 변동 내역 필터링 ──
+function filteredLogs() {
+  return histRows.filter(function (r) {
+    if (r.t < gState.logFrom || r.t > gState.logTo) return false;
+    if (gState.logDay && fmtDate(r.t) !== gState.logDay) return false;
+    if (gState.logNames.length && gState.logNames.indexOf(r.name) < 0) return false;
+    return true;
+  });
+}
+
 function gRender() {
   var h = [];
-
   h.push('<div class="g-wrap">');
 
   // 헤더
   h.push('<div class="g-head">');
   h.push('<div class="g-title">AG-ENT 단가 변동 추이</div>');
-  h.push('<span><a class="g-back" href="index.html">← 단가표로</a> <a class="g-back" href="/api/auth/logout" style="margin-left:14px">로그아웃</a></span>');
+  h.push('<span class="g-headright"><a class="g-back" href="index.html">← 단가표로</a>');
+  h.push('<a class="g-back" href="/api/auth/logout">로그아웃</a></span>');
   h.push('</div>');
 
   if (!gState.ready) {
-    h.push('<div class="g-loading">이력을 불러오는 중…</div>');
-    h.push('</div>');
+    h.push('<div class="g-loading">이력을 불러오는 중…</div></div>');
     gRoot.innerHTML = h.join("");
     return;
   }
-
   if (loadErr) h.push('<div class="g-err">' + gEsc(loadErr) + '</div>');
 
-  // 컨트롤
-  h.push('<div class="g-controls">');
-
+  // ═══ 상단: 보기 · 기간 단위 · 항목 ═══
+  h.push('<div class="g-panel">');
   h.push('<div class="g-ctl"><label>보기</label><div class="g-seg">');
   [["each", "개별"], ["multi", "선택 비교"], ["all", "전체 평균"]].forEach(function (m) {
     h.push('<button class="g-sg' + (gState.mode === m[0] ? " on" : "") + '" data-mode="' + m[0] + '">' + m[1] + '</button>');
@@ -116,91 +132,144 @@ function gRender() {
   });
   h.push('</div></div>');
 
-  h.push('<div class="g-ctl"><label>항목</label><select id="g-field">');
+  h.push('<div class="g-ctl"><label>항목</label><select id="g-field" class="g-input">');
   FIELDS.forEach(function (f) {
     h.push('<option value="' + gEsc(f) + '"' + (gState.field === f ? " selected" : "") + '>' + gEsc(f) + '</option>');
   });
   h.push('</select></div>');
-
-  h.push('<div class="g-ctl"><label>기간</label>');
-  h.push('<div class="g-daterow">');
-  h.push('<input type="date" id="g-from" value="' + fmtDate(gState.from) + '"> ~ ');
-  h.push('<input type="date" id="g-to" value="' + fmtDate(gState.to) + '">');
-  h.push('</div>');
-  h.push('<div class="g-quick">');
-  [['7', '최근 7일'], ['30', '최근 30일'], ['90', '최근 3개월'], ['all', '전체']].forEach(function (q) {
-    h.push('<button class="g-qb" data-quick="' + q[0] + '">' + q[1] + '</button>');
-  });
-  h.push('</div>');
   h.push('</div>');
 
-  h.push('</div>');
+  // ═══ 중단: 크리에이터 선택 + 그래프 기간 ═══
+  h.push('<div class="g-panel">');
 
-  // 크리에이터 선택 (개별/비교 모드)
   if (gState.mode !== "all") {
-    var names = allNames().slice().sort(function (a, b) { return a.localeCompare(b, "ko"); });
-    h.push('<div class="g-picker">');
-    h.push('<div class="g-pickrow">');
-    h.push('<select id="g-select" class="g-select">');
-    h.push('<option value="">크리에이터 선택' + (gState.mode === "multi" ? " (최대 8명)" : "") + '</option>');
+    var names = allNames();
+    h.push('<div class="g-ctl"><label>크리에이터' + (gState.mode === "multi" ? " (최대 8명)" : "") + '</label>');
+    h.push('<div class="g-row">');
+    h.push('<select id="g-select" class="g-input" style="min-width:210px">');
+    h.push('<option value="">선택하세요</option>');
     names.forEach(function (nm) {
       var on = gState.picked.indexOf(nm) >= 0;
-      h.push('<option value="' + gEsc(nm) + '"' + (on ? " disabled" : "") + '>' + gEsc(nm) + (on ? " (선택됨)" : "") + '</option>');
+      h.push('<option value="' + gEsc(nm) + '"' + (on ? " disabled" : "") + '>' + gEsc(nm) + (on ? " ✓" : "") + '</option>');
     });
     h.push('</select>');
-    if (gState.picked.length) h.push('<button class="g-clear" id="g-clear">전체 해제</button>');
-    h.push('</div>');
+    if (gState.picked.length) h.push('<button class="g-mini" id="g-clear">해제</button>');
+    h.push('</div></div>');
+  } else {
+    h.push('<div class="g-ctl"><label>대상</label><div class="g-static">전체 크리에이터 ' + curData.length + '명 평균</div></div>');
+  }
+
+  h.push('<div class="g-ctl"><label>그래프 기간</label>');
+  h.push('<div class="g-row">');
+  h.push('<input type="date" id="g-gfrom" class="g-input" value="' + fmtDate(gState.gFrom) + '">');
+  h.push('<span class="g-tilde">~</span>');
+  h.push('<input type="date" id="g-gto" class="g-input" value="' + fmtDate(gState.gTo) + '">');
+  h.push('</div>');
+  h.push('<div class="g-quick">');
+  [["7", "7일"], ["30", "30일"], ["90", "3개월"], ["all", "전체"]].forEach(function (q) {
+    h.push('<button class="g-qb" data-gquick="' + q[0] + '">' + q[1] + '</button>');
+  });
+  h.push('</div></div>');
+
+  h.push('<div class="g-ctl g-ctl-right"><label>&nbsp;</label>');
+  h.push('<button class="g-action" id="g-export-img">그래프 이미지 저장</button>');
+  h.push('</div>');
+
+  h.push('</div>');
+
+  // 선택된 크리에이터 칩
+  if (gState.mode !== "all" && gState.picked.length) {
     h.push('<div class="g-chips">');
     gState.picked.forEach(function (nm) {
       h.push('<span class="g-chip">' + gEsc(nm) + '<button data-rm="' + gEsc(nm) + '">×</button></span>');
     });
-    if (!gState.picked.length) h.push('<span class="g-hint">위 목록에서 크리에이터를 선택하세요</span>');
-    h.push('</div>');
     h.push('</div>');
   }
 
-  // 차트
+  // ═══ 차트 ═══
   var built = buildSeries();
-  h.push('<div class="g-chart">');
+  h.push('<div class="g-chart" id="g-chart">');
   if (!built.series.length) {
     h.push('<div class="g-empty">크리에이터를 선택하면 추이가 표시됩니다.</div>');
   } else {
+    h.push('<div class="g-charttitle">' + gEsc(gState.field) + ' · ' + fmtDate(gState.gFrom) + ' ~ ' + fmtDate(gState.gTo) + '</div>');
     h.push(renderChart(built.series, built.buckets, { alwaysLegend: gState.mode !== "each" }));
   }
   h.push('</div>');
 
-  // 변동 내역 표
-  // 기간 내 기록에서 날짜 목록 추출 (최신순)
-  var inRange = histRows.filter(function (r) { return r.t >= gState.from && r.t <= gState.to; });
+  // ═══ 하단: 변동 내역 ═══
+  var logs = filteredLogs();
+
+  // 날짜 목록 (logFrom~logTo 안에서)
+  var rangeRows = histRows.filter(function (r) { return r.t >= gState.logFrom && r.t <= gState.logTo; });
   var dayMap = {}, dayList = [];
-  inRange.forEach(function (r) {
+  rangeRows.forEach(function (r) {
     var k = fmtDate(r.t);
     if (!dayMap[k]) { dayMap[k] = 0; dayList.push(k); }
     dayMap[k]++;
   });
   dayList.sort().reverse();
 
-  h.push('<div class="g-section">변동 내역');
-  h.push('<span class="g-sub">' + inRange.length + '건</span></div>');
+  h.push('<div class="g-section">변동 내역<span class="g-sub">' + logs.length + '건</span>');
+  h.push('<span class="g-secright">');
+  h.push('<button class="g-action" id="g-export-csv">엑셀(CSV) 저장</button>');
+  h.push('<button class="g-action" id="g-export-txt">텍스트 복사</button>');
+  h.push('</span></div>');
 
+  h.push('<div class="g-panel g-panel-sm">');
+
+  h.push('<div class="g-ctl"><label>조회 기간</label>');
+  h.push('<div class="g-row">');
+  h.push('<input type="date" id="g-lfrom" class="g-input" value="' + fmtDate(gState.logFrom) + '">');
+  h.push('<span class="g-tilde">~</span>');
+  h.push('<input type="date" id="g-lto" class="g-input" value="' + fmtDate(gState.logTo) + '">');
+  h.push('</div>');
+  h.push('<div class="g-quick">');
+  [["7", "7일"], ["30", "30일"], ["90", "3개월"], ["all", "전체"]].forEach(function (q) {
+    h.push('<button class="g-qb" data-lquick="' + q[0] + '">' + q[1] + '</button>');
+  });
+  h.push('</div></div>');
+
+  h.push('<div class="g-ctl"><label>크리에이터 필터</label>');
+  h.push('<div class="g-row">');
+  h.push('<select id="g-lname" class="g-input" style="min-width:180px">');
+  h.push('<option value="">전체</option>');
+  var logNameSet = {}, logNameList = [];
+  rangeRows.forEach(function (r) { if (!logNameSet[r.name]) { logNameSet[r.name] = 1; logNameList.push(r.name); } });
+  logNameList.sort(function (a, b) { return a.localeCompare(b, "ko"); }).forEach(function (nm) {
+    var on = gState.logNames.indexOf(nm) >= 0;
+    h.push('<option value="' + gEsc(nm) + '"' + (on ? " disabled" : "") + '>' + gEsc(nm) + (on ? " ✓" : "") + '</option>');
+  });
+  h.push('</select>');
+  if (gState.logNames.length) h.push('<button class="g-mini" id="g-lclear">해제</button>');
+  h.push('</div>');
+  if (gState.logNames.length) {
+    h.push('<div class="g-chips g-chips-sm">');
+    gState.logNames.forEach(function (nm) {
+      h.push('<span class="g-chip">' + gEsc(nm) + '<button data-lrm="' + gEsc(nm) + '">×</button></span>');
+    });
+    h.push('</div>');
+  }
+  h.push('</div>');
+
+  h.push('</div>');
+
+  // 날짜 칩
   if (dayList.length) {
     h.push('<div class="g-dayfilter">');
-    h.push('<button class="g-day' + (gState.day === null ? " on" : "") + '" data-day="">전체</button>');
+    h.push('<button class="g-day' + (gState.logDay === null ? " on" : "") + '" data-day="">전체</button>');
     dayList.forEach(function (d) {
-      h.push('<button class="g-day' + (gState.day === d ? " on" : "") + '" data-day="' + d + '">' + d.slice(5) + ' <em>' + dayMap[d] + '</em></button>');
+      h.push('<button class="g-day' + (gState.logDay === d ? " on" : "") + '" data-day="' + d + '">' + d.slice(5) + ' <em>' + dayMap[d] + '</em></button>');
     });
     h.push('</div>');
   }
 
+  // 표
   h.push('<div class="g-tablewrap"><table class="g-table">');
-  h.push('<thead><tr><th>일시</th><th>크리에이터</th><th>항목</th><th>이전</th><th>변경</th><th>변동</th><th>수정자</th></tr></thead><tbody>');
-  var shown = inRange.filter(function (r) {
-    if (gState.day && fmtDate(r.t) !== gState.day) return false;
-    if (gState.mode !== "all" && gState.picked.length && gState.picked.indexOf(r.name) < 0) return false;
-    return true;
-  }).slice().reverse().slice(0, 300);
+  h.push('<thead><tr><th>일시</th><th>크리에이터</th><th>항목</th><th class="g-num">이전</th><th class="g-num">변경</th><th class="g-num">변동</th><th>수정자</th></tr></thead><tbody>');
+  var shown = logs.slice().reverse().slice(0, 300);
   if (!shown.length) {
-    h.push('<tr><td colspan="7" class="g-empty2">해당 기간에 변동 기록이 없습니다.</td></tr>');
+    h.push('<tr><td colspan="7" class="g-empty2">조건에 맞는 변동 기록이 없습니다.</td></tr>');
   } else {
     shown.forEach(function (r) {
       var diff = (r.before != null && r.after != null) ? r.after - r.before : null;
@@ -215,6 +284,7 @@ function gRender() {
         + '<td class="g-num ' + cls + '">' + arrow + '</td>'
         + '<td class="g-who">' + gEsc(r.who) + '</td></tr>');
     });
+    if (logs.length > 300) h.push('<tr><td colspan="7" class="g-more">최근 300건만 표시됩니다 (전체 ' + logs.length + '건)</td></tr>');
   }
   h.push('</tbody></table></div>');
 
@@ -226,80 +296,114 @@ function gRender() {
 function gBind() {
   var byId = function (id) { return document.getElementById(id); };
 
+  function dayStart(v) { var p = v.split("-"); return new Date(+p[0], +p[1] - 1, +p[2], 0, 0, 0, 0); }
+  function dayEnd(v) { var p = v.split("-"); return new Date(+p[0], +p[1] - 1, +p[2], 23, 59, 59, 999); }
+
+  function rangeFor(v) {
+    var now = new Date();
+    var end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    if (histRows.length) {
+      var last = histRows[histRows.length - 1].t;
+      if (last > end) end = new Date(last.getTime() + 60000);
+    }
+    var from;
+    if (v === "all") {
+      from = histRows.length ? new Date(histRows[0].t.getTime()) : new Date(now.getTime() - 30 * 86400000);
+    } else {
+      from = new Date(now.getTime() - parseInt(v, 10) * 86400000);
+    }
+    from.setHours(0, 0, 0, 0);
+    return { from: from, to: end };
+  }
+
+  // 상단
   var segs = gRoot.querySelectorAll(".g-sg");
   for (var i = 0; i < segs.length; i++) {
     segs[i].onclick = function () {
       var m = this.getAttribute("data-mode"), u = this.getAttribute("data-unit");
-      if (m) { gState.mode = m; gState.day = null; if (m === "each" && gState.picked.length > 1) gState.picked = [gState.picked[0]]; }
+      if (m) { gState.mode = m; if (m === "each" && gState.picked.length > 1) gState.picked = [gState.picked[0]]; }
       if (u) gState.unit = u;
       gRender();
     };
   }
-
   var fs = byId("g-field");
   if (fs) fs.onchange = function () { gState.field = this.value; gRender(); };
 
-  var ff = byId("g-from"), ft = byId("g-to");
-  if (ff) ff.onchange = function () { var d = new Date(this.value); if (!isNaN(d)) { gState.from = d; gRender(); } };
-  if (ft) ft.onchange = function () { var d = new Date(this.value); if (!isNaN(d)) { d.setHours(23, 59, 59); gState.to = d; gRender(); } };
-
+  // 중단 — 크리에이터
   var sel = byId("g-select");
-  if (sel) {
-    sel.onchange = function () {
-      var nm = this.value;
-      if (!nm) return;
-      if (gState.mode === "each") {
-        gState.picked = [nm];
-      } else {
-        if (gState.picked.indexOf(nm) < 0 && gState.picked.length < 8) gState.picked.push(nm);
-      }
-      gRender();
-    };
-  }
-
+  if (sel) sel.onchange = function () {
+    var nm = this.value; if (!nm) return;
+    if (gState.mode === "each") gState.picked = [nm];
+    else if (gState.picked.indexOf(nm) < 0 && gState.picked.length < 8) gState.picked.push(nm);
+    gRender();
+  };
   var clr = byId("g-clear");
   if (clr) clr.onclick = function () { gState.picked = []; gRender(); };
-
   var rms = gRoot.querySelectorAll("[data-rm]");
   for (var k = 0; k < rms.length; k++) {
     rms[k].onclick = function () {
-      var nm = this.getAttribute("data-rm");
-      var idx = gState.picked.indexOf(nm);
+      var idx = gState.picked.indexOf(this.getAttribute("data-rm"));
       if (idx >= 0) { gState.picked.splice(idx, 1); gRender(); }
     };
   }
 
-  var qbs = gRoot.querySelectorAll(".g-qb");
-  for (var q = 0; q < qbs.length; q++) {
-    qbs[q].onclick = function () {
-      var v = this.getAttribute("data-quick");
-      var now = new Date();
-      var end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      if (histRows.length) {
-        var last = histRows[histRows.length - 1].t;
-        if (last > end) end = new Date(last.getTime() + 60000);
-      }
-      if (v === "all") {
-        gState.from = histRows.length ? new Date(histRows[0].t.getTime()) : new Date(now.getTime() - 30 * 86400000);
-        gState.from.setHours(0, 0, 0, 0);
-      } else {
-        gState.from = new Date(now.getTime() - parseInt(v, 10) * 86400000);
-        gState.from.setHours(0, 0, 0, 0);
-      }
-      gState.to = end;
-      gState.day = null;
+  // 중단 — 그래프 기간
+  var gf = byId("g-gfrom"), gt = byId("g-gto");
+  if (gf) gf.onchange = function () { if (this.value) { gState.gFrom = dayStart(this.value); gRender(); } };
+  if (gt) gt.onchange = function () { if (this.value) { gState.gTo = dayEnd(this.value); gRender(); } };
+  var gqs = gRoot.querySelectorAll("[data-gquick]");
+  for (var q = 0; q < gqs.length; q++) {
+    gqs[q].onclick = function () {
+      var r = rangeFor(this.getAttribute("data-gquick"));
+      gState.gFrom = r.from; gState.gTo = r.to; gRender();
+    };
+  }
+
+  // 하단 — 조회 기간
+  var lf = byId("g-lfrom"), lt = byId("g-lto");
+  if (lf) lf.onchange = function () { if (this.value) { gState.logFrom = dayStart(this.value); gState.logDay = null; gRender(); } };
+  if (lt) lt.onchange = function () { if (this.value) { gState.logTo = dayEnd(this.value); gState.logDay = null; gRender(); } };
+  var lqs = gRoot.querySelectorAll("[data-lquick]");
+  for (var q2 = 0; q2 < lqs.length; q2++) {
+    lqs[q2].onclick = function () {
+      var r = rangeFor(this.getAttribute("data-lquick"));
+      gState.logFrom = r.from; gState.logTo = r.to; gState.logDay = null; gRender();
+    };
+  }
+
+  // 하단 — 크리에이터 필터
+  var ln = byId("g-lname");
+  if (ln) ln.onchange = function () {
+    var nm = this.value; if (!nm) return;
+    if (gState.logNames.indexOf(nm) < 0) gState.logNames.push(nm);
+    gRender();
+  };
+  var lclr = byId("g-lclear");
+  if (lclr) lclr.onclick = function () { gState.logNames = []; gRender(); };
+  var lrms = gRoot.querySelectorAll("[data-lrm]");
+  for (var m2 = 0; m2 < lrms.length; m2++) {
+    lrms[m2].onclick = function () {
+      var idx = gState.logNames.indexOf(this.getAttribute("data-lrm"));
+      if (idx >= 0) { gState.logNames.splice(idx, 1); gRender(); }
+    };
+  }
+
+  // 하단 — 날짜 칩
+  var days = gRoot.querySelectorAll(".g-day");
+  for (var d = 0; d < days.length; d++) {
+    days[d].onclick = function () {
+      gState.logDay = this.getAttribute("data-day") || null;
       gRender();
     };
   }
 
-  var days = gRoot.querySelectorAll(".g-day");
-  for (var dd = 0; dd < days.length; dd++) {
-    days[dd].onclick = function () {
-      var v = this.getAttribute("data-day");
-      gState.day = v || null;
-      gRender();
-    };
-  }
+  // 추출
+  var exImg = byId("g-export-img");
+  if (exImg) exImg.onclick = exportChartImage;
+  var exCsv = byId("g-export-csv");
+  if (exCsv) exCsv.onclick = exportLogsCSV;
+  var exTxt = byId("g-export-txt");
+  if (exTxt) exTxt.onclick = exportLogsText;
 }
 
 gInit();
