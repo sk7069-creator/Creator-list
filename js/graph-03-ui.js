@@ -7,6 +7,7 @@ var gState = {
   field: "숏폼 1채널",
   picked: [],          // multi 모드에서 선택한 크리에이터
   from: null, to: null,
+  day: null,           // 변동 내역 날짜 필터 (null=전체)
   ready: false
 };
 
@@ -137,20 +138,25 @@ function gRender() {
 
   // 크리에이터 선택 (개별/비교 모드)
   if (gState.mode !== "all") {
-    var names = allNames();
+    var names = allNames().slice().sort(function (a, b) { return a.localeCompare(b, "ko"); });
     h.push('<div class="g-picker">');
-    h.push('<input type="text" id="g-search" class="g-search" placeholder="크리에이터 검색">');
+    h.push('<div class="g-pickrow">');
+    h.push('<select id="g-select" class="g-select">');
+    h.push('<option value="">크리에이터 선택' + (gState.mode === "multi" ? " (최대 8명)" : "") + '</option>');
+    names.forEach(function (nm) {
+      var on = gState.picked.indexOf(nm) >= 0;
+      h.push('<option value="' + gEsc(nm) + '"' + (on ? " disabled" : "") + '>' + gEsc(nm) + (on ? " (선택됨)" : "") + '</option>');
+    });
+    h.push('</select>');
+    if (gState.picked.length) h.push('<button class="g-clear" id="g-clear">전체 해제</button>');
+    h.push('</div>');
     h.push('<div class="g-chips">');
     gState.picked.forEach(function (nm) {
       h.push('<span class="g-chip">' + gEsc(nm) + '<button data-rm="' + gEsc(nm) + '">×</button></span>');
     });
-    if (!gState.picked.length) h.push('<span class="g-hint">아래에서 크리에이터를 선택하세요' + (gState.mode === "multi" ? " (최대 8명)" : "") + '</span>');
+    if (!gState.picked.length) h.push('<span class="g-hint">위 목록에서 크리에이터를 선택하세요</span>');
     h.push('</div>');
-    h.push('<div class="g-list" id="g-list">');
-    names.slice(0, 60).forEach(function (nm) {
-      h.push('<button class="g-name' + (gState.picked.indexOf(nm) >= 0 ? " on" : "") + '" data-name="' + gEsc(nm) + '">' + gEsc(nm) + '</button>');
-    });
-    h.push('</div></div>');
+    h.push('</div>');
   }
 
   // 차트
@@ -164,15 +170,35 @@ function gRender() {
   h.push('</div>');
 
   // 변동 내역 표
+  // 기간 내 기록에서 날짜 목록 추출 (최신순)
+  var inRange = histRows.filter(function (r) { return r.t >= gState.from && r.t <= gState.to; });
+  var dayMap = {}, dayList = [];
+  inRange.forEach(function (r) {
+    var k = fmtDate(r.t);
+    if (!dayMap[k]) { dayMap[k] = 0; dayList.push(k); }
+    dayMap[k]++;
+  });
+  dayList.sort().reverse();
+
   h.push('<div class="g-section">변동 내역');
-  h.push('<span class="g-sub">' + histRows.length + '건 기록됨</span></div>');
+  h.push('<span class="g-sub">' + inRange.length + '건</span></div>');
+
+  if (dayList.length) {
+    h.push('<div class="g-dayfilter">');
+    h.push('<button class="g-day' + (gState.day === null ? " on" : "") + '" data-day="">전체</button>');
+    dayList.forEach(function (d) {
+      h.push('<button class="g-day' + (gState.day === d ? " on" : "") + '" data-day="' + d + '">' + d.slice(5) + ' <em>' + dayMap[d] + '</em></button>');
+    });
+    h.push('</div>');
+  }
+
   h.push('<div class="g-tablewrap"><table class="g-table">');
   h.push('<thead><tr><th>일시</th><th>크리에이터</th><th>항목</th><th>이전</th><th>변경</th><th>변동</th><th>수정자</th></tr></thead><tbody>');
-  var shown = histRows.filter(function (r) {
-    if (r.t < gState.from || r.t > gState.to) return false;
+  var shown = inRange.filter(function (r) {
+    if (gState.day && fmtDate(r.t) !== gState.day) return false;
     if (gState.mode !== "all" && gState.picked.length && gState.picked.indexOf(r.name) < 0) return false;
     return true;
-  }).slice().reverse().slice(0, 200);
+  }).slice().reverse().slice(0, 300);
   if (!shown.length) {
     h.push('<tr><td colspan="7" class="g-empty2">해당 기간에 변동 기록이 없습니다.</td></tr>');
   } else {
@@ -204,7 +230,7 @@ function gBind() {
   for (var i = 0; i < segs.length; i++) {
     segs[i].onclick = function () {
       var m = this.getAttribute("data-mode"), u = this.getAttribute("data-unit");
-      if (m) { gState.mode = m; if (m === "each" && gState.picked.length > 1) gState.picked = [gState.picked[0]]; }
+      if (m) { gState.mode = m; gState.day = null; if (m === "each" && gState.picked.length > 1) gState.picked = [gState.picked[0]]; }
       if (u) gState.unit = u;
       gRender();
     };
@@ -217,20 +243,22 @@ function gBind() {
   if (ff) ff.onchange = function () { var d = new Date(this.value); if (!isNaN(d)) { gState.from = d; gRender(); } };
   if (ft) ft.onchange = function () { var d = new Date(this.value); if (!isNaN(d)) { d.setHours(23, 59, 59); gState.to = d; gRender(); } };
 
-  var names = gRoot.querySelectorAll(".g-name");
-  for (var j = 0; j < names.length; j++) {
-    names[j].onclick = function () {
-      var nm = this.getAttribute("data-name");
-      var idx = gState.picked.indexOf(nm);
+  var sel = byId("g-select");
+  if (sel) {
+    sel.onchange = function () {
+      var nm = this.value;
+      if (!nm) return;
       if (gState.mode === "each") {
-        gState.picked = idx >= 0 ? [] : [nm];
+        gState.picked = [nm];
       } else {
-        if (idx >= 0) gState.picked.splice(idx, 1);
-        else if (gState.picked.length < 8) gState.picked.push(nm);
+        if (gState.picked.indexOf(nm) < 0 && gState.picked.length < 8) gState.picked.push(nm);
       }
       gRender();
     };
   }
+
+  var clr = byId("g-clear");
+  if (clr) clr.onclick = function () { gState.picked = []; gRender(); };
 
   var rms = gRoot.querySelectorAll("[data-rm]");
   for (var k = 0; k < rms.length; k++) {
@@ -259,19 +287,17 @@ function gBind() {
         gState.from.setHours(0, 0, 0, 0);
       }
       gState.to = end;
+      gState.day = null;
       gRender();
     };
   }
 
-  var sc = byId("g-search");
-  if (sc) {
-    sc.oninput = function () {
-      var q = this.value.toLowerCase();
-      var list = gRoot.querySelectorAll(".g-name");
-      for (var i = 0; i < list.length; i++) {
-        var nm = list[i].getAttribute("data-name").toLowerCase();
-        list[i].style.display = (!q || nm.indexOf(q) >= 0) ? "" : "none";
-      }
+  var days = gRoot.querySelectorAll(".g-day");
+  for (var dd = 0; dd < days.length; dd++) {
+    days[dd].onclick = function () {
+      var v = this.getAttribute("data-day");
+      gState.day = v || null;
+      gRender();
     };
   }
 }

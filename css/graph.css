@@ -8,14 +8,16 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .g-loading,.g-empty,.g-empty2{padding:50px;text-align:center;color:#999;font-size:13px}
 .g-err{padding:12px 14px;background:#fdecea;border:1px solid #f5c6c2;border-radius:6px;color:#c0392b;font-size:12.5px;margin-bottom:14px}
 
-.g-controls{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;padding:14px 16px;background:#fff;border:1px solid #ddd9d2;border-radius:8px;margin-bottom:12px}
-.g-ctl{display:flex;flex-direction:column;gap:6px}
-.g-ctl label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8a8375;font-weight:700}
+.g-controls{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;padding:18px 20px;background:#fff;border:1px solid #ddd9d2;border-radius:8px;margin-bottom:14px}
+.g-ctl{display:flex;flex-direction:column;gap:7px;min-height:62px}
+.g-ctl label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8a8375;font-weight:700;line-height:1}
 .g-seg{display:inline-flex;gap:2px;background:#eeebe4;padding:2px;border-radius:6px}
 .g-sg{font-family:inherit;font-size:12px;font-weight:600;padding:6px 13px;border:none;background:transparent;color:#666;cursor:pointer;border-radius:4px}
 .g-sg:hover{color:#222}
 .g-sg.on{background:#fff;color:#2E5CB8;box-shadow:0 1px 3px rgba(0,0,0,.12)}
-.g-ctl select,.g-ctl input[type=date]{font-family:inherit;font-size:12px;padding:6px 9px;border:1px solid #ccc7bf;border-radius:5px;background:#fff;outline:none}
+.g-ctl select,.g-ctl input[type=date]{font-family:inherit;font-size:12px;height:30px;padding:0 9px;border:1px solid #ccc7bf;border-radius:5px;background:#fff;outline:none;box-sizing:border-box}
+.g-seg{height:30px;box-sizing:border-box;align-items:center}
+.g-sg{height:26px;display:inline-flex;align-items:center}
 .g-ctl select:focus,.g-ctl input:focus{border-color:#2E5CB8}
 
 .g-picker{padding:14px 16px;background:#fff;border:1px solid #ddd9d2;border-radius:8px;margin-bottom:12px}
@@ -51,7 +53,22 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .g-num.up{color:#c0392b;font-weight:600}
 .g-num.down{color:#1a7a3a;font-weight:600}
 .g-who{color:#8a8375;font-size:11px}
-.g-daterow{display:flex;align-items:center;gap:6px;font-size:12px;color:#999}
-.g-quick{display:flex;gap:4px;margin-top:6px}
-.g-qb{font-family:inherit;font-size:11px;padding:4px 9px;border:1px solid #e0dcd4;background:#fff;color:#777;border-radius:4px;cursor:pointer}
+.g-daterow{display:flex;align-items:center;gap:6px;font-size:12px;color:#999;height:30px}
+.g-quick{display:flex;gap:4px;margin-top:7px}
+.g-qb{font-family:inherit;font-size:11px;height:24px;padding:0 9px;border:1px solid #e0dcd4;background:#fff;color:#777;border-radius:4px;cursor:pointer}
 .g-qb:hover{border-color:#2E5CB8;color:#2E5CB8}
+
+/* 크리에이터 드롭다운 선택 */
+.g-pickrow{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.g-select{font-family:inherit;font-size:12.5px;height:32px;padding:0 10px;border:1px solid #ccc7bf;border-radius:5px;background:#fff;outline:none;min-width:240px;cursor:pointer}
+.g-select:focus{border-color:#2E5CB8}
+.g-clear{font-family:inherit;font-size:11px;height:32px;padding:0 12px;border:1px solid #e0dcd4;background:#fff;color:#777;border-radius:5px;cursor:pointer}
+.g-clear:hover{border-color:#c0392b;color:#c0392b}
+
+/* 변동 내역 날짜 필터 */
+.g-dayfilter{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.g-day{font-family:inherit;font-size:11.5px;height:27px;padding:0 11px;border:1px solid #e0dcd4;background:#fff;color:#666;border-radius:14px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.g-day:hover{border-color:#2E5CB8;color:#2E5CB8}
+.g-day.on{background:#2E5CB8;border-color:#2E5CB8;color:#fff;font-weight:600}
+.g-day em{font-style:normal;font-size:10px;opacity:.65}
+.g-day.on em{opacity:.85}
