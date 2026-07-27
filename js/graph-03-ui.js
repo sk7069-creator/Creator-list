@@ -252,30 +252,51 @@ function gRender() {
   });
   h.push('</div></div>');
 
-  // 오른쪽: 선택 크리에이터 요약 + 저장 버튼
+  // 오른쪽: 선택 크리에이터 요약 (1명일 때) + 저장 버튼
   h.push('<div class="g-ctl g-ctl-right">');
   if (gState.mode !== "all" && gState.picked.length === 1) {
     var pk = gState.picked[0];
     var pkTrend = creatorTrend(pk);
     var badge = { up: ["상승세", "up"], down: ["하락세", "down"], hold: ["유지", "hold"], none: ["이력 없음", "none"] }[pkTrend.status];
-    var lastTxt = pkTrend.last
-      ? (fmtDate(pkTrend.last) + " 변경")
-      : "변경 이력 없음";
-    // 현재 단가 정보
+    var lastTxt = pkTrend.last ? (fmtDate(pkTrend.last) + " 변경") : "변경 이력 없음";
+
     var pkData = null;
     for (var ci = 0; ci < curData.length; ci++) { if (curData[ci].n === pk) { pkData = curData[ci]; break; } }
 
+    // 현재 항목의 단가·기간변동 (선 데이터에서)
+    var built0 = buildSeries();
+    var s0 = built0.series[0];
+    var cur0 = null, diff0 = null, max0 = null, min0 = null;
+    if (s0) {
+      var pts0 = s0.points.filter(function (p) { return p.y != null; });
+      if (pts0.length) {
+        cur0 = pts0[pts0.length - 1].y;
+        diff0 = cur0 - pts0[0].y;
+        max0 = Math.max.apply(null, pts0.map(function (p) { return p.y; }));
+        min0 = Math.min.apply(null, pts0.map(function (p) { return p.y; }));
+      }
+    }
+    var dCls = diff0 == null ? "" : (diff0 > 0 ? "up" : (diff0 < 0 ? "down" : ""));
+    var dTxt = diff0 == null ? "-" : (diff0 > 0 ? "▲ " + fmtMoney(diff0) : (diff0 < 0 ? "▼ " + fmtMoney(-diff0) : "변동 없음"));
+
     h.push('<div class="g-picksum">');
-    h.push('<div class="g-picksum-h">' + gEsc(pk) + ' <span class="g-card-badge ' + badge[1] + '">' + badge[0] + '</span></div>');
-    h.push('<div class="g-picksum-sub">' + lastTxt + '</div>');
-    // SNS 링크 아이콘
+    h.push('<div class="g-picksum-top">');
+    h.push('<span class="g-picksum-name">' + gEsc(pk) + '</span>');
+    h.push('<span class="g-card-badge ' + badge[1] + '">' + badge[0] + '</span>');
+    // SNS
     if (pkData) {
       var links = [];
       if (pkData.ig && /^https?:/i.test(pkData.ig)) links.push('<a class="g-sns ig" href="' + gEsc(pkData.ig) + '" target="_blank" rel="noopener" title="인스타그램">IG</a>');
       if (pkData.tt && /^https?:/i.test(pkData.tt)) links.push('<a class="g-sns tt" href="' + gEsc(pkData.tt) + '" target="_blank" rel="noopener" title="틱톡">TT</a>');
       if (pkData.yt && /^https?:/i.test(pkData.yt)) links.push('<a class="g-sns yt" href="' + gEsc(pkData.yt) + '" target="_blank" rel="noopener" title="유튜브">YT</a>');
-      if (links.length) h.push('<div class="g-snsrow">' + links.join("") + '</div>');
+      if (links.length) h.push('<span class="g-snsrow">' + links.join("") + '</span>');
     }
+    h.push('</div>');
+    h.push('<div class="g-picksum-mid">' + (cur0 == null ? "-" : fmtMoney(cur0)) + ' <em>' + UNIT_LABEL + '</em>'
+      + '<span class="g-picksum-diff ' + dCls + '">' + dTxt + '</span></div>');
+    h.push('<div class="g-picksum-sub">'
+      + (max0 != null ? "최고 " + fmtMoney(max0) + " · 최저 " + fmtMoney(min0) + " · " : "")
+      + lastTxt + '</div>');
     h.push('</div>');
   }
   h.push('<button class="g-action" id="g-export-img">그래프 이미지 저장</button>');
@@ -283,12 +304,17 @@ function gRender() {
 
   h.push('</div>');
 
-  // 선택된 크리에이터 칩
-  if (gState.mode !== "all" && gState.picked.length) {
+  // 선택된 크리에이터 칩 (2명 이상일 때만 — 1명은 위 요약으로 충분)
+  if (gState.mode !== "all" && gState.picked.length >= 2) {
     h.push('<div class="g-chips">');
     gState.picked.forEach(function (nm) {
       h.push('<span class="g-chip">' + gEsc(nm) + '<button data-rm="' + gEsc(nm) + '">×</button></span>');
     });
+    h.push('</div>');
+  } else if (gState.mode !== "all" && gState.picked.length === 1) {
+    // 1명일 때 해제용 칩만 작게
+    h.push('<div class="g-chips">');
+    h.push('<span class="g-chip">' + gEsc(gState.picked[0]) + '<button data-rm="' + gEsc(gState.picked[0]) + '">×</button></span>');
     h.push('</div>');
   }
 
@@ -316,7 +342,9 @@ function gRender() {
   } else {
     // 선 모드
     var built = buildSeries();
-    if (built.series.length) {
+    // 개별 1명은 위 요약에 이미 다 있으므로 카드 생략. 전체평균/비교(2명+)만 카드 표시.
+    var showCards = !(gState.mode === "each" && gState.picked.length === 1);
+    if (built.series.length && showCards) {
       h.push('<div class="g-cards">');
       built.series.forEach(function (s, si) {
         var pts = s.points.filter(function (p) { return p.y != null; });

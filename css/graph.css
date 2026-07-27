@@ -186,10 +186,10 @@ select.g-input{cursor:pointer}
 .g-rate-days{color:#b0a99c}
 
 /* 선택 크리에이터 요약 (그래프 이미지 저장 옆) */
-.g-picksum{text-align:right}
-.g-picksum-h{font-size:14px;font-weight:800;color:#222;display:flex;align-items:center;gap:8px;justify-content:flex-end}
+
+
 .g-picksum-h .g-card-badge{margin-top:0}
-.g-picksum-sub{font-size:11px;color:#999;margin-top:3px}
+
 
 .g-ctl-avg{margin-left:auto;text-align:right}
 .g-ctl-avg label{display:block}
@@ -201,3 +201,16 @@ select.g-input{cursor:pointer}
 .g-sns.ig{background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)}
 .g-sns.tt{background:#111}
 .g-sns.yt{background:#ff0000}
+
+/* 선택 크리에이터 요약 (1명, 한 줄 통합) */
+.g-picksum{text-align:right}
+.g-picksum-top{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.g-picksum-name{font-size:15px;font-weight:800;color:#111}
+.g-picksum-top .g-card-badge{margin-top:0}
+.g-picksum-top .g-snsrow{margin-top:0;margin-left:4px}
+.g-picksum-mid{font-size:20px;font-weight:800;color:#111;margin-top:6px;letter-spacing:-.02em}
+.g-picksum-mid em{font-size:11px;font-weight:600;color:#999;font-style:normal;margin-left:1px}
+.g-picksum-diff{font-size:12px;font-weight:700;margin-left:8px}
+.g-picksum-diff.up{color:#c0392b}
+.g-picksum-diff.down{color:#1a7a3a}
+.g-picksum-sub{font-size:11px;color:#aaa;margin-top:4px}
