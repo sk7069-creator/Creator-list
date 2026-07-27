@@ -191,17 +191,25 @@ function groupTrends() {
     if (g) nameGroup[c.n] = g;
   });
 
-  var result = {
-    high: { up: 0, down: 0, hold: 0, none: 0, total: 0 },
-    mid:  { up: 0, down: 0, hold: 0, none: 0, total: 0 },
-    low:  { up: 0, down: 0, hold: 0, none: 0, total: 0 }
-  };
+  function blank() {
+    return { up: 0, down: 0, hold: 0, none: 0, total: 0,
+             names: { up: [], down: [], hold: [], none: [] } };
+  }
+  var result = { high: blank(), mid: blank(), low: blank() };
 
   Object.keys(nameGroup).forEach(function (name) {
     var g = nameGroup[name];
     var t = trendStatus(name);
     result[g].total++;
     result[g][t.status]++;
+    result[g].names[t.status].push({ name: name, pct: t.pct, daysSince: t.daysSince });
+  });
+
+  // 이름 가나다 정렬
+  ["high", "mid", "low"].forEach(function (g) {
+    ["up", "down", "hold", "none"].forEach(function (st) {
+      result[g].names[st].sort(function (a, b) { return a.name.localeCompare(b.name, "ko"); });
+    });
   });
 
   return result;

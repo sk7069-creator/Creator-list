@@ -16,7 +16,7 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .g-panel{display:flex;flex-wrap:wrap;gap:18px 34px;align-items:flex-start;padding:20px 24px;background:#fff;border:1px solid #ddd9d2;border-radius:8px;margin-bottom:12px}
 .g-panel-sm{padding:18px 24px;gap:18px 30px}
 .g-ctl{display:flex;flex-direction:column;gap:8px}
-.g-ctl-right{margin-left:auto;align-self:center}
+.g-ctl-right{margin-left:auto;display:flex;align-items:center;gap:14px;justify-content:flex-end;padding-top:25px}
 .g-ctl label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8a8375;font-weight:700;line-height:1}
 .g-row{display:flex;align-items:center;gap:7px}
 .g-tilde{color:#bbb;font-size:12px}
@@ -173,3 +173,23 @@ select.g-input{cursor:pointer}
 .g-card-badge.down{background:#e8f5ec;color:#1a7a3a}
 .g-card-badge.hold{background:#f0ede7;color:#8a8375}
 .g-card-badge.none{background:#f0ede7;color:#b0a99c}
+
+/* 방향 명단 (펼치기) */
+.g-rate-row.clickable{cursor:pointer;border-radius:4px;margin:0 -6px;padding:3px 6px}
+.g-rate-row.clickable:hover{background:#f3efe8}
+.g-rate-caret{font-size:8px;color:#bbb;margin-left:2px}
+.g-rate-names{display:flex;flex-wrap:wrap;gap:5px;padding:6px 0 8px;margin-bottom:2px}
+.g-rate-name{font-size:11px;padding:3px 9px;background:#fff;border:1px solid #e0dcd4;border-radius:12px;cursor:pointer;color:#444}
+.g-rate-name:hover{border-color:#2E5CB8;color:#2E5CB8}
+.g-rate-name .up{color:#c0392b;font-weight:600}
+.g-rate-name .down{color:#1a7a3a;font-weight:600}
+.g-rate-days{color:#b0a99c}
+
+/* 선택 크리에이터 요약 (그래프 이미지 저장 옆) */
+.g-picksum{text-align:right}
+.g-picksum-h{font-size:14px;font-weight:800;color:#222;display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.g-picksum-h .g-card-badge{margin-top:0}
+.g-picksum-sub{font-size:11px;color:#999;margin-top:3px}
+
+.g-ctl-avg{margin-left:auto;text-align:right}
+.g-ctl-avg label{display:block}

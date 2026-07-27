@@ -19,6 +19,7 @@ var gState = {
   logDay: null,          // 특정 날짜만 (null=전체)
   logNames: [],          // 크리에이터 필터 (비어있으면 전체)
   logWho: "",            // 수정자 필터 (빈 문자열=전체)
+  trendOpen: {},         // 펼친 방향 명단 {"high-up":true}
 
   ready: false
 };
@@ -174,7 +175,7 @@ function gRender() {
   // 전체 평균 (현재 선택 항목)
   var avgField = gState.mode === "each" ? gState.fields[0] : gState.field;
   var avgV = avgOfField(FIELD_KEY[avgField]);
-  h.push('<div class="g-ctl g-ctl-right"><label>전체 평균 · ' + gEsc(avgField) + '</label>');
+  h.push('<div class="g-ctl g-ctl-avg"><label>전체 평균 · ' + gEsc(avgField) + '</label>');
   h.push('<div class="g-avg">' + (avgV == null ? "-" : fmtMoney(avgV)) + ' <em>' + UNIT_LABEL + '</em> '
     + '<span class="g-avg-sub">' + curData.length + '명</span></div>');
   h.push('</div>');
@@ -189,13 +190,34 @@ function gRender() {
   [["high", "500만원 이상", trends.high],
    ["mid", "200~500만원", trends.mid],
    ["low", "200만원 미만", trends.low]].forEach(function (grp) {
-    var label = grp[1], t = grp[2];
-    var known = t.up + t.down + t.hold;   // 이력이 있는 인원
+    var gkey = grp[0], label = grp[1], t = grp[2];
     h.push('<div class="g-rate-card">');
     h.push('<div class="g-rate-h">' + label + ' <span class="g-rate-cnt">' + t.total + '명</span></div>');
-    h.push('<div class="g-rate-row"><span class="g-rate-lbl up">▲ 상승</span><b class="up">' + t.up + '<em>명</em></b></div>');
-    h.push('<div class="g-rate-row"><span class="g-rate-lbl down">▼ 하락</span><b class="down">' + t.down + '<em>명</em></b></div>');
-    h.push('<div class="g-rate-row"><span class="g-rate-lbl">― 유지</span><b>' + t.hold + '<em>명</em></b></div>');
+
+    [["up", "▲ 상승", "up"], ["down", "▼ 하락", "down"], ["hold", "― 유지", ""]].forEach(function (st) {
+      var stKey = st[0], stLabel = st[1], cls = st[2];
+      var cnt = t[stKey];
+      var openKey = gkey + "-" + stKey;
+      var isOpen = gState.trendOpen[openKey];
+      var clickable = cnt > 0;
+      h.push('<div class="g-rate-row' + (clickable ? " clickable" : "") + '"' + (clickable ? ' data-trend="' + openKey + '"' : '') + '>');
+      h.push('<span class="g-rate-lbl ' + cls + '">' + stLabel + (clickable ? ' <span class="g-rate-caret">' + (isOpen ? "▾" : "▸") + '</span>' : '') + '</span>');
+      h.push('<b class="' + cls + '">' + cnt + '<em>명</em></b>');
+      h.push('</div>');
+      // 펼친 명단
+      if (isOpen && t.names[stKey].length) {
+        h.push('<div class="g-rate-names">');
+        t.names[stKey].forEach(function (item) {
+          var extra = "";
+          if (stKey === "up" && item.pct != null) extra = ' <span class="up">+' + item.pct + '%</span>';
+          else if (stKey === "down" && item.pct != null) extra = ' <span class="down">' + item.pct + '%</span>';
+          else if (stKey === "hold" && item.daysSince != null) extra = ' <span class="g-rate-days">' + item.daysSince + '일 전</span>';
+          h.push('<span class="g-rate-name" data-pick="' + gEsc(item.name) + '">' + gEsc(item.name) + extra + '</span>');
+        });
+        h.push('</div>');
+      }
+    });
+
     if (t.none) h.push('<div class="g-rate-foot">이력 없음 ' + t.none + '명</div>');
     else h.push('<div class="g-rate-foot">전원 이력 있음</div>');
     h.push('</div>');
@@ -230,7 +252,20 @@ function gRender() {
   });
   h.push('</div></div>');
 
-  h.push('<div class="g-ctl g-ctl-right"><label>&nbsp;</label>');
+  // 오른쪽: 선택 크리에이터 요약 + 저장 버튼
+  h.push('<div class="g-ctl g-ctl-right">');
+  if (gState.mode !== "all" && gState.picked.length === 1) {
+    var pk = gState.picked[0];
+    var pkTrend = creatorTrend(pk);
+    var badge = { up: ["상승세", "up"], down: ["하락세", "down"], hold: ["유지", "hold"], none: ["이력 없음", "none"] }[pkTrend.status];
+    var lastTxt = pkTrend.last
+      ? (fmtDate(pkTrend.last) + " 변경")
+      : "변경 이력 없음";
+    h.push('<div class="g-picksum">');
+    h.push('<div class="g-picksum-h">' + gEsc(pk) + ' <span class="g-card-badge ' + badge[1] + '">' + badge[0] + '</span></div>');
+    h.push('<div class="g-picksum-sub">' + lastTxt + '</div>');
+    h.push('</div>');
+  }
   h.push('<button class="g-action" id="g-export-img">그래프 이미지 저장</button>');
   h.push('</div>');
 
@@ -431,6 +466,29 @@ function gBind() {
   }
 
   // 상단
+  // 방향 카드: 상태 줄 클릭 → 명단 펼치기
+  var trendRows = gRoot.querySelectorAll("[data-trend]");
+  for (var tr = 0; tr < trendRows.length; tr++) {
+    trendRows[tr].onclick = function () {
+      var key = this.getAttribute("data-trend");
+      gState.trendOpen[key] = !gState.trendOpen[key];
+      gRender();
+    };
+  }
+  var pickNames = gRoot.querySelectorAll("[data-pick]");
+  for (var pn = 0; pn < pickNames.length; pn++) {
+    pickNames[pn].onclick = function (e) {
+      e.stopPropagation();
+      var nm = this.getAttribute("data-pick");
+      gState.mode = "each";
+      gState.picked = [nm];
+      gState.fields = [gState.fields[0] || "숏폼 1채널"];
+      gRender();
+      var chart = document.getElementById("g-chart");
+      if (chart) chart.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+  }
+
   var segs = gRoot.querySelectorAll(".g-sg");
   for (var i = 0; i < segs.length; i++) {
     segs[i].onclick = function () {
