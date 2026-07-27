@@ -1,6 +1,7 @@
 /* AG-ENT 단가 이력 — 화면 구성 */
 
 var gRoot = document.getElementById("groot");
+var UNIT_LABEL = "만원";   // 국내 단가 기준 (한화 만원)
 
 var gState = {
   // 상단: 보기 방식
@@ -188,14 +189,38 @@ function gRender() {
     h.push('</div>');
   }
 
-  // ═══ 차트 ═══
+  // ═══ 토탈 요약 카드 ═══
   var built = buildSeries();
+  if (built.series.length) {
+    h.push('<div class="g-cards">');
+    built.series.forEach(function (s, si) {
+      var pts = s.points.filter(function (p) { return p.y != null; });
+      if (!pts.length) return;
+      var color = CHART_COLORS[si % CHART_COLORS.length];
+      var latest = pts[pts.length - 1].y;
+      var first = pts[0].y;
+      var diff = latest - first;
+      var maxv = Math.max.apply(null, pts.map(function (p) { return p.y; }));
+      var minv = Math.min.apply(null, pts.map(function (p) { return p.y; }));
+      var diffCls = diff > 0 ? "up" : (diff < 0 ? "down" : "");
+      var diffTxt = diff > 0 ? "▲ " + fmtMoney(diff) : (diff < 0 ? "▼ " + fmtMoney(-diff) : "변동 없음");
+      h.push('<div class="g-card">');
+      h.push('<div class="g-card-h"><i style="background:' + color + '"></i>' + gEsc(s.label) + '</div>');
+      h.push('<div class="g-card-v">' + fmtMoney(latest) + ' <em>' + UNIT_LABEL + '</em></div>');
+      h.push('<div class="g-card-sub">기간 변동 <b class="' + diffCls + '">' + diffTxt + '</b></div>');
+      h.push('<div class="g-card-mm">최고 ' + fmtMoney(maxv) + ' · 최저 ' + fmtMoney(minv) + '</div>');
+      h.push('</div>');
+    });
+    h.push('</div>');
+  }
+
+  // ═══ 차트 ═══
   h.push('<div class="g-chart" id="g-chart">');
   if (!built.series.length) {
     h.push('<div class="g-empty">크리에이터를 선택하면 추이가 표시됩니다.</div>');
   } else {
-    h.push('<div class="g-charttitle">' + gEsc(gState.field) + ' · ' + fmtDate(gState.gFrom) + ' ~ ' + fmtDate(gState.gTo) + '</div>');
-    h.push(renderChart(built.series, built.buckets, { alwaysLegend: gState.mode !== "each" }));
+    h.push('<div class="g-charttitle">' + gEsc(gState.field) + ' · ' + fmtDate(gState.gFrom) + ' ~ ' + fmtDate(gState.gTo) + ' <span class="g-unittag">단위: ' + UNIT_LABEL + '</span></div>');
+    h.push(renderChart(built.series, built.buckets, { alwaysLegend: gState.mode !== "each", unitLabel: UNIT_LABEL }));
   }
   h.push('</div>');
 
@@ -299,6 +324,8 @@ function gRender() {
   h.push('</div>');
   gRoot.innerHTML = h.join("");
   gBind();
+  var chartBox = document.getElementById("g-chart");
+  if (chartBox) attachChartTooltip(chartBox, UNIT_LABEL);
 }
 
 function gBind() {

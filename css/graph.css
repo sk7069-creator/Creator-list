@@ -82,3 +82,30 @@ select.g-input{cursor:pointer}
 #g-toast{position:fixed;bottom:20px;left:20px;background:#111;color:#fff;font-size:12px;font-weight:500;padding:12px 18px;border-radius:5px;max-width:380px;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;z-index:100}
 #g-toast.show{opacity:1;transform:translateY(0)}
 .g-fieldhint{font-size:10.5px;color:#aaa;margin-top:2px}
+
+/* 토탈 요약 카드 */
+.g-cards{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+.g-card{flex:1;min-width:180px;background:#fff;border:1px solid #ddd9d2;border-radius:8px;padding:14px 16px}
+.g-card-h{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#555;margin-bottom:8px}
+.g-card-h i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.g-card-v{font-size:22px;font-weight:800;color:#111;letter-spacing:-.02em}
+.g-card-v em{font-size:12px;font-weight:600;color:#999;font-style:normal;margin-left:2px}
+.g-card-sub{font-size:11.5px;color:#888;margin-top:6px}
+.g-card-sub b{font-weight:700}
+.g-card-sub b.up{color:#c0392b}
+.g-card-sub b.down{color:#1a7a3a}
+.g-card-mm{font-size:10.5px;color:#b0a99c;margin-top:3px}
+
+/* 단위 표기 */
+.g-axisunit{font-size:10px;fill:#b0a99c;font-family:'Malgun Gothic',sans-serif}
+.g-unittag{font-size:11px;font-weight:400;color:#b0a99c;margin-left:8px}
+
+/* 차트 툴팁 */
+.g-chart{position:relative}
+.g-tip{position:absolute;transform:translate(-50%,-100%);background:#1f2430;color:#fff;border-radius:6px;padding:8px 11px;font-size:11.5px;line-height:1.5;pointer-events:none;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.22);z-index:20;display:none}
+.g-tip::after{content:"";position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1f2430;border-bottom:none}
+.g-tip-h{display:flex;align-items:center;gap:5px;font-weight:600}
+.g-tip-h i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.g-tip-x{display:block;color:#aeb4c0;font-size:10.5px;margin-top:2px}
+.g-tip-v{display:block;font-size:14px;font-weight:800;margin-top:2px}
+.g-tip-v em{font-size:10px;font-weight:500;color:#aeb4c0;font-style:normal}

@@ -10,7 +10,19 @@ function fmtMoney(v) {
   return v == null ? "-" : Number(v).toLocaleString();
 }
 
-// 기간 단위로 날짜 라벨 만들기
+// 눈금을 5·10·25·50·100 같은 깔끔한 단위로
+function niceStep(rough) {
+  var pow = Math.pow(10, Math.floor(Math.log(rough) / Math.LN10));
+  var frac = rough / pow;
+  var nice;
+  if (frac <= 1) nice = 1;
+  else if (frac <= 2) nice = 2;
+  else if (frac <= 2.5) nice = 2.5;
+  else if (frac <= 5) nice = 5;
+  else nice = 10;
+  return Math.max(5, nice * pow);
+}
+
 function bucketKey(d, unit) {
   function z(n) { return (n < 10 ? "0" : "") + n; }
   var y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
@@ -18,14 +30,13 @@ function bucketKey(d, unit) {
   if (unit === "month") return y + "-" + z(m);
   if (unit === "week") {
     var t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    var dayNum = (t.getDay() + 6) % 7;          // 월요일 시작
+    var dayNum = (t.getDay() + 6) % 7;
     t.setDate(t.getDate() - dayNum);
     return t.getFullYear() + "-" + z(t.getMonth() + 1) + "-" + z(t.getDate());
   }
-  return y + "-" + z(m) + "-" + z(day);         // day
+  return y + "-" + z(m) + "-" + z(day);
 }
 
-// 버킷 목록 생성 (시작~끝 사이를 unit 간격으로)
 function makeBuckets(from, to, unit) {
   var out = [], cur = new Date(from.getTime());
   cur.setHours(0, 0, 0, 0);
@@ -52,27 +63,27 @@ function endOfBucket(d, unit) {
   return e;
 }
 
-/**
- * series: [{label, color, points:[{x:'2026-07', y:1400}]}]
- * 반환: SVG 문자열
- */
 function renderChart(series, buckets, opts) {
   opts = opts || {};
   var W = opts.width || 980, H = opts.height || 380;
-  var padL = 70, padR = 24, padT = 20, padB = 56;
+  var padL = 76, padR = 24, padT = 24, padB = 56;
   var iw = W - padL - padR, ih = H - padT - padB;
+  var unitLabel = opts.unitLabel || "";
 
-  // Y 범위
   var vals = [];
   series.forEach(function (s) { s.points.forEach(function (p) { if (p.y != null) vals.push(p.y); }); });
   if (!vals.length) {
     return '<div class="g-empty">표시할 데이터가 없습니다. 기간을 넓혀보세요.</div>';
   }
-  var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
-  if (min === max) { min = Math.max(0, min - 100); max = max + 100; }
-  var span = max - min;
-  min = Math.max(0, min - span * 0.1);
-  max = max + span * 0.1;
+  var dataMin = Math.min.apply(null, vals), dataMax = Math.max.apply(null, vals);
+  if (dataMin === dataMax) { dataMin = Math.max(0, dataMin - 50); dataMax = dataMax + 50; }
+
+  var STEPS = 5;
+  var step = niceStep((dataMax - dataMin) / STEPS || 1);
+  var min = Math.max(0, Math.floor(dataMin / step) * step);
+  var max = Math.ceil(dataMax / step) * step;
+  if (max === min) max = min + step;
+  var nSteps = Math.round((max - min) / step);
 
   var n = buckets.length;
   function px(i) { return padL + (n <= 1 ? iw / 2 : (iw * i) / (n - 1)); }
@@ -81,23 +92,24 @@ function renderChart(series, buckets, opts) {
   var h = [];
   h.push('<svg viewBox="0 0 ' + W + ' ' + H + '" class="g-svg" preserveAspectRatio="xMidYMid meet">');
 
-  // 가로 눈금선 + Y 라벨
-  var STEPS = 5;
-  for (var g = 0; g <= STEPS; g++) {
-    var v = min + ((max - min) * g) / STEPS;
-    var y = py(v);
-    h.push('<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" stroke="#e8e5df" stroke-width="1"/>');
-    h.push('<text x="' + (padL - 10) + '" y="' + (y + 4) + '" text-anchor="end" class="g-axis">' + fmtMoney(Math.round(v)) + '</text>');
+  if (unitLabel) {
+    h.push('<text x="' + (padL - 10) + '" y="' + (padT - 9) + '" text-anchor="end" class="g-axisunit">(' + gEsc(unitLabel) + ')</text>');
   }
 
-  // X 라벨 (너무 많으면 건너뛰기)
-  var step = Math.ceil(n / 12) || 1;
+  for (var g = 0; g <= nSteps; g++) {
+    var v = min + step * g;
+    var y = py(v);
+    h.push('<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" stroke="#e8e5df" stroke-width="1"/>');
+    h.push('<text x="' + (padL - 10) + '" y="' + (y + 4) + '" text-anchor="end" class="g-axis">' + fmtMoney(v) + '</text>');
+  }
+
+  var xstep = Math.ceil(n / 12) || 1;
   for (var i = 0; i < n; i++) {
-    if (i % step !== 0 && i !== n - 1) continue;
+    if (i % xstep !== 0 && i !== n - 1) continue;
     h.push('<text x="' + px(i) + '" y="' + (H - padB + 20) + '" text-anchor="middle" class="g-axis">' + gEsc(buckets[i].key) + '</text>');
   }
 
-  // 선 + 점
+  var dots = [];
   series.forEach(function (s, si) {
     var color = s.color || CHART_COLORS[si % CHART_COLORS.length];
     var d = "", started = false;
@@ -110,14 +122,17 @@ function renderChart(series, buckets, opts) {
     if (d) h.push('<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round"/>');
     s.points.forEach(function (p, i) {
       if (p.y == null) return;
-      h.push('<circle cx="' + px(i) + '" cy="' + py(p.y) + '" r="3.5" fill="#fff" stroke="' + color + '" stroke-width="2">'
-        + '<title>' + gEsc(s.label) + ' · ' + gEsc(buckets[i].key) + ' · ' + fmtMoney(p.y) + '</title></circle>');
+      var x = px(i), y = py(p.y);
+      h.push('<circle cx="' + x + '" cy="' + y + '" r="3.5" fill="#fff" stroke="' + color + '" stroke-width="2"/>');
+      dots.push('<circle class="g-hit" cx="' + x + '" cy="' + y + '" r="13" fill="transparent" '
+        + 'data-label="' + gEsc(s.label) + '" data-x="' + gEsc(buckets[i].key) + '" '
+        + 'data-y="' + p.y + '" data-color="' + color + '"/>');
     });
   });
+  h.push(dots.join(""));
 
   h.push('</svg>');
 
-  // 범례
   if (series.length > 1 || opts.alwaysLegend) {
     h.push('<div class="g-legend">');
     series.forEach(function (s, si) {
@@ -127,4 +142,42 @@ function renderChart(series, buckets, opts) {
     h.push('</div>');
   }
   return h.join("");
+}
+
+// 렌더 후 툴팁 이벤트 연결
+function attachChartTooltip(container, unitLabel) {
+  var svg = container.querySelector("svg.g-svg");
+  if (!svg) return;
+
+  var tip = container.querySelector(".g-tip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.className = "g-tip";
+    container.appendChild(tip);
+  }
+  tip.style.display = "none";
+
+  var hits = svg.querySelectorAll(".g-hit");
+  for (var i = 0; i < hits.length; i++) {
+    hits[i].addEventListener("mouseenter", function (e) {
+      var el = e.target;
+      var color = el.getAttribute("data-color");
+      var label = el.getAttribute("data-label");
+      var xk = el.getAttribute("data-x");
+      var yv = Number(el.getAttribute("data-y"));
+      tip.innerHTML = '<span class="g-tip-h"><i style="background:' + color + '"></i>' + gEsc(label) + '</span>'
+        + '<span class="g-tip-x">' + gEsc(xk) + '</span>'
+        + '<span class="g-tip-v">' + fmtMoney(yv) + (unitLabel ? ' <em>' + gEsc(unitLabel) + '</em>' : '') + '</span>';
+      tip.style.display = "block";
+      var crect = container.getBoundingClientRect();
+      var drect = el.getBoundingClientRect();
+      var cx = drect.left + drect.width / 2 - crect.left;
+      var cy = drect.top - crect.top;
+      tip.style.left = cx + "px";
+      tip.style.top = (cy - 10) + "px";
+    });
+    hits[i].addEventListener("mouseleave", function () {
+      tip.style.display = "none";
+    });
+  }
 }
