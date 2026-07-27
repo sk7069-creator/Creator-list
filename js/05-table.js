@@ -1,6 +1,6 @@
 /* AG-ENT 크리에이터 단가표 — 표 렌더링 · 선택 · 편집 · 병합 */
 function render(){
-  var vr=viewRows();
+  var vr=viewRowsRaw(false);
   var totalW=COLS.reduce(function(a,c){return a+c.w;},0)+40;
   var h=[];
   h.push('<div class="xl-wrap">');
@@ -54,7 +54,7 @@ function render(){
   // ── 데이터 ──
   h.push('<tbody>');
   vr.forEach(function(o,ri){
-    h.push('<tr data-di="'+o.di+'">');
+    h.push('<tr data-di="'+o.di+'" data-rowname="'+esc(o.row.n||"")+'">');
     h.push('<td class="xl-rownum'+(rowSelected(ri)?' xl-rowsel':'')+'" data-row="'+ri+'">'+(ri+1)+'</td>');
     var merges=o.row._m||[];
     var rowName=o.row.n||"";
@@ -98,6 +98,24 @@ function render(){
   h.push('</div>');
   root.innerHTML=h.join("");
   bind(vr);
+  if(searchQ) applyLiveFilter(searchQ);   // 다시 그린 뒤 현재 검색어로 행 숨김 유지
+}
+
+// 입력창을 건드리지 않고 표의 행만 보이거나 숨김 (한글 IME 조합 보호)
+function applyLiveFilter(val){
+  if(!root) return;
+  var q=String(val||"").replace(/\s/g,"").toLowerCase();
+  var rows=root.querySelectorAll("tbody tr[data-rowname]");
+  var shown=0;
+  for(var i=0;i<rows.length;i++){
+    var nm=(rows[i].getAttribute("data-rowname")||"").replace(/\s/g,"").toLowerCase();
+    var hit=!q||nm.indexOf(q)>=0;
+    rows[i].style.display=hit?"":"none";
+    if(hit) shown++;
+  }
+  var cnt=root.querySelector(".xl-count");
+  if(cnt) cnt.textContent=data.length+"명"+(q?(" · 검색 "+shown):"")
+    +(activeTab==="us"?" · 환율 "+USD_RATE.toLocaleString():"");
 }
 
 function selContains(r,c){
@@ -117,33 +135,15 @@ function bind(vr){
   var searchEl = byId("xl-search");
   if (searchEl) {
     var composing = false;
-    var searchTimer = null;
-
-    function runSearch(val) {
-      searchQ = val;
-      sel = null;
-      render();
-      // 다시 그린 뒤 입력창에 포커스와 커서 위치 복원
-      var s = byId("xl-search");
-      if (s) {
-        s.focus();
-        try { s.setSelectionRange(s.value.length, s.value.length); } catch (e) {}
-      }
-    }
-
-    // 한글 조합 시작/종료 감지
     searchEl.addEventListener("compositionstart", function () { composing = true; });
     searchEl.addEventListener("compositionend", function (e) {
       composing = false;
-      clearTimeout(searchTimer);
-      runSearch(e.target.value);
+      searchQ = e.target.value;
+      applyLiveFilter(searchQ);
     });
-
     searchEl.oninput = function (e) {
-      if (composing) return;          // 조합 중에는 실행하지 않음
-      var val = e.target.value;
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(function () { runSearch(val); }, 120);
+      searchQ = e.target.value;
+      applyLiveFilter(searchQ);   // 입력창은 그대로 두고 표 행만 숨김/표시 (IME 보호)
     };
   }
   byId("xl-copy").onclick=function(){ copySelection(vr); };

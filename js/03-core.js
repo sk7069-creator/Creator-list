@@ -35,9 +35,13 @@ var activeTab="kr"; // "kr" | "us"
 function colLabel(c){ return activeTab==="us" ? (OVERSEAS_HEADERS[c.key]||c.label) : c.label; }
 function currentData(){ return activeTab==="us" ? toOverseasData(data) : data; }
 function viewRows(){
+  return viewRowsRaw(true);
+}
+// includeSearch=false면 검색 필터를 적용하지 않음 (render는 전체를 그리고 CSS로 숨김)
+function viewRowsRaw(includeSearch){
   var src=currentData();
   var rows=src.map(function(r,i){ return {row:r, di:i}; });
-  if(searchQ){ var q=searchQ.toLowerCase(); rows=rows.filter(function(o){ return String(o.row.n||"").toLowerCase().indexOf(q)>=0; }); }
+  if(includeSearch && searchQ){ var q=searchQ.toLowerCase(); rows=rows.filter(function(o){ return String(o.row.n||"").toLowerCase().indexOf(q)>=0; }); }
   if(sortState.key&&sortState.dir){
     var col=null; COLS.forEach(function(c){ if(c.key===sortState.key) col=c; });
     rows.sort(function(a,b){
