@@ -153,6 +153,7 @@ function exportLogsText() {
     + "기간: " + fmtDate(gState.logFrom) + " ~ " + fmtDate(gState.logTo)
     + (gState.logDay ? " (" + gState.logDay + "만)" : "")
     + (gState.logNames.length ? "\n대상: " + gState.logNames.join(", ") : "")
+    + (gState.logWho ? "\n수정자: " + gState.logWho : "")
     + "\n총 " + logs.length + "건\n\n";
 
   var body = logs.slice().reverse().map(function (r) {

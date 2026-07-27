@@ -81,3 +81,4 @@ select.g-input{cursor:pointer}
 
 #g-toast{position:fixed;bottom:20px;left:20px;background:#111;color:#fff;font-size:12px;font-weight:500;padding:12px 18px;border-radius:5px;max-width:380px;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;z-index:100}
 #g-toast.show{opacity:1;transform:translateY(0)}
+.g-fieldhint{font-size:10.5px;color:#aaa;margin-top:2px}

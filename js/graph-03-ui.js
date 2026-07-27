@@ -16,6 +16,7 @@ var gState = {
   logFrom: null, logTo: null,
   logDay: null,          // 특정 날짜만 (null=전체)
   logNames: [],          // 크리에이터 필터 (비어있으면 전체)
+  logWho: "",            // 수정자 필터 (빈 문자열=전체)
 
   ready: false
 };
@@ -96,6 +97,7 @@ function filteredLogs() {
     if (r.t < gState.logFrom || r.t > gState.logTo) return false;
     if (gState.logDay && fmtDate(r.t) !== gState.logDay) return false;
     if (gState.logNames.length && gState.logNames.indexOf(r.name) < 0) return false;
+    if (gState.logWho && r.who !== gState.logWho) return false;
     return true;
   });
 }
@@ -200,15 +202,7 @@ function gRender() {
   // ═══ 하단: 변동 내역 ═══
   var logs = filteredLogs();
 
-  // 날짜 목록 (logFrom~logTo 안에서)
   var rangeRows = histRows.filter(function (r) { return r.t >= gState.logFrom && r.t <= gState.logTo; });
-  var dayMap = {}, dayList = [];
-  rangeRows.forEach(function (r) {
-    var k = fmtDate(r.t);
-    if (!dayMap[k]) { dayMap[k] = 0; dayList.push(k); }
-    dayMap[k]++;
-  });
-  dayList.sort().reverse();
 
   h.push('<div class="g-section">변동 내역<span class="g-sub">' + logs.length + '건</span>');
   h.push('<span class="g-secright">');
@@ -230,9 +224,19 @@ function gRender() {
   });
   h.push('</div></div>');
 
-  h.push('<div class="g-ctl"><label>크리에이터 필터</label>');
+  // 특정 날짜 하나만 콕 집기
+  h.push('<div class="g-ctl"><label>특정 일자</label>');
   h.push('<div class="g-row">');
-  h.push('<select id="g-lname" class="g-input" style="min-width:180px">');
+  h.push('<input type="date" id="g-lday" class="g-input" value="' + (gState.logDay || "") + '"'
+    + ' min="' + fmtDate(gState.logFrom) + '" max="' + fmtDate(gState.logTo) + '">');
+  if (gState.logDay) h.push('<button class="g-mini" id="g-ldayclr">해제</button>');
+  h.push('</div>');
+  h.push('<div class="g-fieldhint">선택 시 그날 기록만 표시</div>');
+  h.push('</div>');
+
+  h.push('<div class="g-ctl"><label>크리에이터</label>');
+  h.push('<div class="g-row">');
+  h.push('<select id="g-lname" class="g-input" style="min-width:150px">');
   h.push('<option value="">전체</option>');
   var logNameSet = {}, logNameList = [];
   rangeRows.forEach(function (r) { if (!logNameSet[r.name]) { logNameSet[r.name] = 1; logNameList.push(r.name); } });
@@ -252,17 +256,21 @@ function gRender() {
   }
   h.push('</div>');
 
-  h.push('</div>');
+  // 수정자 필터
+  var whoSet = {}, whoList = [];
+  rangeRows.forEach(function (r) { if (r.who && !whoSet[r.who]) { whoSet[r.who] = 1; whoList.push(r.who); } });
+  whoList.sort();
+  h.push('<div class="g-ctl"><label>수정자</label>');
+  h.push('<div class="g-row">');
+  h.push('<select id="g-lwho" class="g-input" style="min-width:180px">');
+  h.push('<option value="">전체</option>');
+  whoList.forEach(function (w) {
+    h.push('<option value="' + gEsc(w) + '"' + (gState.logWho === w ? " selected" : "") + '>' + gEsc(w) + '</option>');
+  });
+  h.push('</select>');
+  h.push('</div></div>');
 
-  // 날짜 칩
-  if (dayList.length) {
-    h.push('<div class="g-dayfilter">');
-    h.push('<button class="g-day' + (gState.logDay === null ? " on" : "") + '" data-day="">전체</button>');
-    dayList.forEach(function (d) {
-      h.push('<button class="g-day' + (gState.logDay === d ? " on" : "") + '" data-day="' + d + '">' + d.slice(5) + ' <em>' + dayMap[d] + '</em></button>');
-    });
-    h.push('</div>');
-  }
+  h.push('</div>');
 
   // 표
   h.push('<div class="g-tablewrap"><table class="g-table">');
@@ -361,8 +369,8 @@ function gBind() {
 
   // 하단 — 조회 기간
   var lf = byId("g-lfrom"), lt = byId("g-lto");
-  if (lf) lf.onchange = function () { if (this.value) { gState.logFrom = dayStart(this.value); gState.logDay = null; gRender(); } };
-  if (lt) lt.onchange = function () { if (this.value) { gState.logTo = dayEnd(this.value); gState.logDay = null; gRender(); } };
+  if (lf) lf.onchange = function () { if (this.value) { gState.logFrom = dayStart(this.value); gState.logDay = null; gState.logWho = ""; gRender(); } };
+  if (lt) lt.onchange = function () { if (this.value) { gState.logTo = dayEnd(this.value); gState.logDay = null; gState.logWho = ""; gRender(); } };
   var lqs = gRoot.querySelectorAll("[data-lquick]");
   for (var q2 = 0; q2 < lqs.length; q2++) {
     lqs[q2].onclick = function () {
@@ -389,13 +397,13 @@ function gBind() {
   }
 
   // 하단 — 날짜 칩
-  var days = gRoot.querySelectorAll(".g-day");
-  for (var d = 0; d < days.length; d++) {
-    days[d].onclick = function () {
-      gState.logDay = this.getAttribute("data-day") || null;
-      gRender();
-    };
-  }
+  var lday = byId("g-lday");
+  if (lday) lday.onchange = function () { gState.logDay = this.value || null; gRender(); };
+  var ldayclr = byId("g-ldayclr");
+  if (ldayclr) ldayclr.onclick = function () { gState.logDay = null; gRender(); };
+
+  var lwho = byId("g-lwho");
+  if (lwho) lwho.onchange = function () { gState.logWho = this.value || ""; gRender(); };
 
   // 추출
   var exImg = byId("g-export-img");
