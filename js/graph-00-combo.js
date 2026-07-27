@@ -67,17 +67,26 @@ function comboBind(cfg) {
     }
   }
 
+  var lastQuery = null;
+  function renderIfChanged(q) {
+    if (q === lastQuery) return;   // 같은 검색어면 다시 그리지 않음 (클릭 타이밍 보호)
+    lastQuery = q;
+    renderList(q);
+  }
+
   function open() {
     root.setAttribute("data-open", "1");
     inp.removeAttribute("readonly");
     inp.value = "";
-    renderList("");
+    lastQuery = null;
+    renderIfChanged("");
     setTimeout(function () { inp.focus(); }, 0);
   }
   function close() {
     root.setAttribute("data-open", "0");
     inp.setAttribute("readonly", "readonly");
     inp.value = "";
+    lastQuery = null;
   }
 
   root.__close = close;
@@ -85,11 +94,11 @@ function comboBind(cfg) {
   inp.onclick = function () {
     if (root.getAttribute("data-open") === "1") close(); else open();
   };
-  // 한글 조합 중에는 필터 미루기
+  // 한글 조합 중에도 필터를 반영하되, 같은 결과면 재렌더 안 함
   var composing = false;
   inp.addEventListener("compositionstart", function () { composing = true; });
-  inp.addEventListener("compositionend", function () { composing = false; renderList(inp.value); });
-  inp.oninput = function () { if (!composing) renderList(inp.value); };
+  inp.addEventListener("compositionend", function () { composing = false; renderIfChanged(inp.value); });
+  inp.oninput = function () { renderIfChanged(inp.value); };
   inp.onkeydown = function (e) { if (e.key === "Escape") close(); };
 }
 
