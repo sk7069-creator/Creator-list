@@ -13,10 +13,10 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .g-err{padding:12px 14px;background:#fdecea;border:1px solid #f5c6c2;border-radius:6px;color:#c0392b;font-size:12.5px;margin-bottom:14px}
 
 /* 패널 (상단/중단/하단 공통) */
-.g-panel{display:flex;flex-wrap:wrap;gap:20px 40px;align-items:flex-start;justify-content:space-between;padding:22px 32px;background:#fff;border:1px solid #ddd9d2;border-radius:8px;margin-bottom:12px}
-.g-panel-sm{padding:18px 32px;gap:18px 36px}
+.g-panel{display:flex;flex-wrap:wrap;gap:18px 34px;align-items:flex-start;padding:20px 24px;background:#fff;border:1px solid #ddd9d2;border-radius:8px;margin-bottom:12px}
+.g-panel-sm{padding:18px 24px;gap:18px 30px}
 .g-ctl{display:flex;flex-direction:column;gap:8px}
-.g-ctl-right{margin-left:auto}
+.g-ctl-right{margin-left:auto;align-self:center}
 .g-ctl label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8a8375;font-weight:700;line-height:1}
 .g-row{display:flex;align-items:center;gap:7px}
 .g-tilde{color:#bbb;font-size:12px}
