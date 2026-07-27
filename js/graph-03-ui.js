@@ -252,8 +252,7 @@ function gRender() {
   });
   h.push('</div></div>');
 
-  // 오른쪽: 선택 크리에이터 요약 (1명일 때) + 저장 버튼
-  h.push('<div class="g-ctl g-ctl-right">');
+  // 선택 크리에이터 요약 (1명일 때) — 같은 줄에 나란히
   if (gState.mode !== "all" && gState.picked.length === 1) {
     var pk = gState.picked[0];
     var pkTrend = creatorTrend(pk);
@@ -263,7 +262,6 @@ function gRender() {
     var pkData = null;
     for (var ci = 0; ci < curData.length; ci++) { if (curData[ci].n === pk) { pkData = curData[ci]; break; } }
 
-    // 현재 항목의 단가·기간변동 (선 데이터에서)
     var built0 = buildSeries();
     var s0 = built0.series[0];
     var cur0 = null, diff0 = null, max0 = null, min0 = null;
@@ -279,11 +277,11 @@ function gRender() {
     var dCls = diff0 == null ? "" : (diff0 > 0 ? "up" : (diff0 < 0 ? "down" : ""));
     var dTxt = diff0 == null ? "-" : (diff0 > 0 ? "▲ " + fmtMoney(diff0) : (diff0 < 0 ? "▼ " + fmtMoney(-diff0) : "변동 없음"));
 
+    h.push('<div class="g-ctl"><label>선택 크리에이터</label>');
     h.push('<div class="g-picksum">');
     h.push('<div class="g-picksum-top">');
     h.push('<span class="g-picksum-name">' + gEsc(pk) + '</span>');
     h.push('<span class="g-card-badge ' + badge[1] + '">' + badge[0] + '</span>');
-    // SNS
     if (pkData) {
       var links = [];
       if (pkData.ig && /^https?:/i.test(pkData.ig)) links.push('<a class="g-sns ig" href="' + gEsc(pkData.ig) + '" target="_blank" rel="noopener" title="인스타그램">IG</a>');
@@ -297,8 +295,11 @@ function gRender() {
     h.push('<div class="g-picksum-sub">'
       + (max0 != null ? "최고 " + fmtMoney(max0) + " · 최저 " + fmtMoney(min0) + " · " : "")
       + lastTxt + '</div>');
-    h.push('</div>');
+    h.push('</div></div>');
   }
+
+  // 저장 버튼 (오른쪽 끝)
+  h.push('<div class="g-ctl g-ctl-right"><label>&nbsp;</label>');
   h.push('<button class="g-action" id="g-export-img">그래프 이미지 저장</button>');
   h.push('</div>');
 
