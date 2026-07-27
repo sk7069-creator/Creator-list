@@ -181,25 +181,23 @@ function gRender() {
 
   h.push('</div>');
 
-  // ═══ 가격대별 월 변동률 ═══
-  var rates = groupMonthlyRates();
+  // ═══ 가격대별 단가 방향 (상승/하락/유지) ═══
+  var trends = groupTrends();
   h.push('<div class="g-rates">');
-  h.push('<div class="g-rates-title">가격대별 월 변동률 <span class="g-rates-note">숏폼 1채널 단가 기준 · 이력 ' + rates.months.toFixed(1) + '개월</span></div>');
+  h.push('<div class="g-rates-title">가격대별 단가 방향 <span class="g-rates-note">숏폼 1채널 기준 · 최근 변경 방향 (60일 이상 변동 없으면 유지)</span></div>');
   h.push('<div class="g-rates-grid">');
-  [["high", "500만원 이상", rates.high, rates.counts.high],
-   ["mid", "200~500만원", rates.mid, rates.counts.mid],
-   ["low", "200만원 미만", rates.low, rates.counts.low]].forEach(function (grp) {
-    var key = grp[0], label = grp[1], r = grp[2], cnt = grp[3];
+  [["high", "500만원 이상", trends.high],
+   ["mid", "200~500만원", trends.mid],
+   ["low", "200만원 미만", trends.low]].forEach(function (grp) {
+    var label = grp[1], t = grp[2];
+    var known = t.up + t.down + t.hold;   // 이력이 있는 인원
     h.push('<div class="g-rate-card">');
-    h.push('<div class="g-rate-h">' + label + ' <span class="g-rate-cnt">' + cnt + '명</span></div>');
-    if (!r.changes) {
-      h.push('<div class="g-rate-empty">변동 이력 없음</div>');
-    } else {
-      h.push('<div class="g-rate-row"><span class="g-rate-lbl">전체</span><b>' + (r.all == null ? "-" : r.all + "%") + '</b></div>');
-      h.push('<div class="g-rate-row"><span class="g-rate-lbl up">▲ 상향</span><b class="up">' + (r.up == null ? "-" : r.up + "%") + '</b></div>');
-      h.push('<div class="g-rate-row"><span class="g-rate-lbl down">▼ 하향</span><b class="down">' + (r.down == null ? "-" : r.down + "%") + '</b></div>');
-      h.push('<div class="g-rate-foot">변동 ' + r.changes + '건 · ' + r.creators + '명</div>');
-    }
+    h.push('<div class="g-rate-h">' + label + ' <span class="g-rate-cnt">' + t.total + '명</span></div>');
+    h.push('<div class="g-rate-row"><span class="g-rate-lbl up">▲ 상승</span><b class="up">' + t.up + '<em>명</em></b></div>');
+    h.push('<div class="g-rate-row"><span class="g-rate-lbl down">▼ 하락</span><b class="down">' + t.down + '<em>명</em></b></div>');
+    h.push('<div class="g-rate-row"><span class="g-rate-lbl">― 유지</span><b>' + t.hold + '<em>명</em></b></div>');
+    if (t.none) h.push('<div class="g-rate-foot">이력 없음 ' + t.none + '명</div>');
+    else h.push('<div class="g-rate-foot">전원 이력 있음</div>');
     h.push('</div>');
   });
   h.push('</div></div>');
@@ -289,6 +287,12 @@ function gRender() {
         h.push('<div class="g-card-v">' + fmtMoney(latest) + ' <em>' + UNIT_LABEL + '</em></div>');
         h.push('<div class="g-card-sub">기간 변동 <b class="' + diffCls + '">' + diffTxt + '</b></div>');
         h.push('<div class="g-card-mm">최고 ' + fmtMoney(maxv) + ' · 최저 ' + fmtMoney(minv) + '</div>');
+        // 단가 방향 뱃지 (개별/비교 모드에서 크리에이터 이름일 때)
+        if (gState.mode !== "all") {
+          var tr = creatorTrend(s.label);
+          var badge = { up: ["상승세", "up"], down: ["하락세", "down"], hold: ["유지", "hold"], none: ["이력 없음", "none"] }[tr.status];
+          if (badge) h.push('<div class="g-card-badge ' + badge[1] + '">' + badge[0] + '</div>');
+        }
         h.push('</div>');
       });
       h.push('</div>');

@@ -155,7 +155,8 @@ select.g-input{cursor:pointer}
 .g-rate-lbl{color:#888}
 .g-rate-lbl.up{color:#c0392b}
 .g-rate-lbl.down{color:#1a7a3a}
-.g-rate-row b{font-size:14px;font-weight:800;color:#333}
+.g-rate-row b{font-size:15px;font-weight:800;color:#333}
+.g-rate-row b em{font-size:10px;font-weight:500;color:#aaa;font-style:normal;margin-left:1px}
 .g-rate-row b.up{color:#c0392b}
 .g-rate-row b.down{color:#1a7a3a}
 .g-rate-foot{font-size:10px;color:#b8b0a2;margin-top:8px;padding-top:8px;border-top:1px solid #eee7dd}
@@ -165,3 +166,10 @@ select.g-input{cursor:pointer}
 .g-barval{font-size:11px;font-weight:700;fill:#444;font-family:'Malgun Gothic',sans-serif}
 .g-bar{transition:opacity .15s}
 .g-bar:hover{opacity:.82}
+
+/* 단가 방향 뱃지 (토탈 카드) */
+.g-card-badge{display:inline-block;margin-top:8px;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:10px}
+.g-card-badge.up{background:#fdecea;color:#c0392b}
+.g-card-badge.down{background:#e8f5ec;color:#1a7a3a}
+.g-card-badge.hold{background:#f0ede7;color:#8a8375}
+.g-card-badge.none{background:#f0ede7;color:#b0a99c}

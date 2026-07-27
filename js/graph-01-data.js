@@ -158,61 +158,56 @@ function priceGroup(v) {
  * 반환: { high:{all,up,down,n}, mid:{...}, low:{...} }
  *   all: 방향 무관 평균 변동률(%), up: 상향만, down: 하향만, n: 표본 수
  */
-function groupMonthlyRates() {
-  var groups = {
-    high: { upSum: 0, upN: 0, downSum: 0, downN: 0, allSum: 0, allN: 0, creators: {} },
-    mid:  { upSum: 0, upN: 0, downSum: 0, downN: 0, allSum: 0, allN: 0, creators: {} },
-    low:  { upSum: 0, upN: 0, downSum: 0, downN: 0, allSum: 0, allN: 0, creators: {} }
-  };
+function trendStatus(name) {
+  // 최근 단가 방향 판단: 크리에이터의 숏폼1 이력을 보고 상승/하락/유지
+  var STALE_DAYS = 60;   // 이 기간 넘게 변경 없으면 '유지(정체)'
+  var changes = [];
+  histRows.forEach(function (h) {
+    if (h.name !== name) return;
+    if (h.field !== "숏폼 1채널") return;   // 대표 항목 기준
+    if (h.before == null || h.after == null) return;
+    changes.push(h);
+  });
+  if (!changes.length) return { status: "none", last: null };
 
-  // 크리에이터별 현재 숏폼1 단가로 그룹 결정
+  var last = changes[changes.length - 1];
+  var now = new Date();
+  var daysSince = (now - last.t) / 86400000;
+
+  if (daysSince > STALE_DAYS) return { status: "hold", last: last.t, daysSince: Math.round(daysSince) };
+
+  // 최근 변경의 방향
+  var diff = last.after - last.before;
+  if (diff > 0) return { status: "up", last: last.t, pct: +(((diff) / last.before) * 100).toFixed(1) };
+  if (diff < 0) return { status: "down", last: last.t, pct: +(((diff) / last.before) * 100).toFixed(1) };
+  return { status: "hold", last: last.t };
+}
+
+// 가격대별 상승/하락/유지 인원 집계
+function groupTrends() {
   var nameGroup = {};
   curData.forEach(function (c) {
     var g = priceGroup(c.s1);
     if (g) nameGroup[c.n] = g;
   });
 
-  // 이력의 각 변경 건을 순회
-  histRows.forEach(function (h) {
-    var g = nameGroup[h.name];
-    if (!g) return;
-    if (h.before == null || h.after == null || h.before === 0) return;
-    var pct = ((h.after - h.before) / h.before) * 100;   // 변동률 %
-    var G = groups[g];
-    G.allSum += Math.abs(pct); G.allN++;
-    if (pct > 0) { G.upSum += pct; G.upN++; }
-    else if (pct < 0) { G.downSum += Math.abs(pct); G.downN++; }
-    G.creators[h.name] = 1;
+  var result = {
+    high: { up: 0, down: 0, hold: 0, none: 0, total: 0 },
+    mid:  { up: 0, down: 0, hold: 0, none: 0, total: 0 },
+    low:  { up: 0, down: 0, hold: 0, none: 0, total: 0 }
+  };
+
+  Object.keys(nameGroup).forEach(function (name) {
+    var g = nameGroup[name];
+    var t = trendStatus(name);
+    result[g].total++;
+    result[g][t.status]++;
   });
 
-  // 기간(개월 수) 계산: 이력 전체 범위
-  var months = 1;
-  if (histRows.length >= 2) {
-    var first = histRows[0].t, last = histRows[histRows.length - 1].t;
-    var days = (last - first) / 86400000;
-    months = Math.max(1, days / 30);
-  }
+  return result;
+}
 
-  function pack(G) {
-    return {
-      all: G.allN ? +(G.allSum / months).toFixed(1) : null,
-      up: G.upN ? +(G.upSum / months).toFixed(1) : null,
-      down: G.downN ? +(G.downSum / months).toFixed(1) : null,
-      changes: G.allN,
-      creators: Object.keys(G.creators).length
-    };
-  }
-
-  return {
-    high: pack(groups.high),
-    mid: pack(groups.mid),
-    low: pack(groups.low),
-    months: months,
-    // 그룹별 현재 인원
-    counts: {
-      high: Object.keys(nameGroup).filter(function (n) { return nameGroup[n] === "high"; }).length,
-      mid: Object.keys(nameGroup).filter(function (n) { return nameGroup[n] === "mid"; }).length,
-      low: Object.keys(nameGroup).filter(function (n) { return nameGroup[n] === "low"; }).length
-    }
-  };
+// 개별 크리에이터의 상태 (칩/뱃지용)
+function creatorTrend(name) {
+  return trendStatus(name);
 }
