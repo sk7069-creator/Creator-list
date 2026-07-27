@@ -110,7 +110,8 @@ function gRender() {
   // 헤더
   h.push('<div class="g-head">');
   h.push('<div class="g-title">AG-ENT 단가 변동 추이</div>');
-  h.push('<span class="g-headright"><a class="g-back" href="index.html">← 단가표로</a>');
+  h.push('<span class="g-headright"><span class="g-sign">DEV by. JHDG</span>');
+  h.push('<a class="g-back" href="index.html">← 단가표로</a>');
   h.push('<a class="g-back" href="/api/auth/logout">로그아웃</a></span>');
   h.push('</div>');
 
@@ -147,15 +148,11 @@ function gRender() {
 
   if (gState.mode !== "all") {
     var names = allNames();
+    var disMap = {};
+    gState.picked.forEach(function (nm) { disMap[nm] = true; });
     h.push('<div class="g-ctl"><label>크리에이터' + (gState.mode === "multi" ? " (최대 8명)" : "") + '</label>');
     h.push('<div class="g-row">');
-    h.push('<select id="g-select" class="g-input" style="min-width:210px">');
-    h.push('<option value="">선택하세요</option>');
-    names.forEach(function (nm) {
-      var on = gState.picked.indexOf(nm) >= 0;
-      h.push('<option value="' + gEsc(nm) + '"' + (on ? " disabled" : "") + '>' + gEsc(nm) + (on ? " ✓" : "") + '</option>');
-    });
-    h.push('</select>');
+    h.push(comboHTML({ id: "g-select", placeholder: "이름 검색·선택", width: 210 }));
     if (gState.picked.length) h.push('<button class="g-mini" id="g-clear">해제</button>');
     h.push('</div></div>');
   } else {
@@ -261,15 +258,10 @@ function gRender() {
 
   h.push('<div class="g-ctl"><label>크리에이터</label>');
   h.push('<div class="g-row">');
-  h.push('<select id="g-lname" class="g-input" style="min-width:150px">');
-  h.push('<option value="">전체</option>');
   var logNameSet = {}, logNameList = [];
   rangeRows.forEach(function (r) { if (!logNameSet[r.name]) { logNameSet[r.name] = 1; logNameList.push(r.name); } });
-  logNameList.sort(function (a, b) { return a.localeCompare(b, "ko"); }).forEach(function (nm) {
-    var on = gState.logNames.indexOf(nm) >= 0;
-    h.push('<option value="' + gEsc(nm) + '"' + (on ? " disabled" : "") + '>' + gEsc(nm) + (on ? " ✓" : "") + '</option>');
-  });
-  h.push('</select>');
+  logNameList.sort(function (a, b) { return a.localeCompare(b, "ko"); });
+  h.push(comboHTML({ id: "g-lname", placeholder: "이름 검색·선택", width: 160 }));
   if (gState.logNames.length) h.push('<button class="g-mini" id="g-lclear">해제</button>');
   h.push('</div>');
   if (gState.logNames.length) {
@@ -364,14 +356,22 @@ function gBind() {
   var fs = byId("g-field");
   if (fs) fs.onchange = function () { gState.field = this.value; gRender(); };
 
-  // 중단 — 크리에이터
-  var sel = byId("g-select");
-  if (sel) sel.onchange = function () {
-    var nm = this.value; if (!nm) return;
-    if (gState.mode === "each") gState.picked = [nm];
-    else if (gState.picked.indexOf(nm) < 0 && gState.picked.length < 8) gState.picked.push(nm);
-    gRender();
-  };
+  // 중단 — 크리에이터 (검색 콤보박스)
+  if (gState.mode !== "all") {
+    var comboDis = {};
+    gState.picked.forEach(function (nm) { comboDis[nm] = true; });
+    comboBind({
+      id: "g-select",
+      options: allNames(),
+      disabled: comboDis,
+      onPick: function (nm) {
+        if (!nm) return;
+        if (gState.mode === "each") gState.picked = [nm];
+        else if (gState.picked.indexOf(nm) < 0 && gState.picked.length < 8) gState.picked.push(nm);
+        gRender();
+      }
+    });
+  }
   var clr = byId("g-clear");
   if (clr) clr.onclick = function () { gState.picked = []; gRender(); };
   var rms = gRoot.querySelectorAll("[data-rm]");
@@ -407,12 +407,23 @@ function gBind() {
   }
 
   // 하단 — 크리에이터 필터
-  var ln = byId("g-lname");
-  if (ln) ln.onchange = function () {
-    var nm = this.value; if (!nm) return;
-    if (gState.logNames.indexOf(nm) < 0) gState.logNames.push(nm);
-    gRender();
-  };
+  // 하단 — 크리에이터 필터 (검색 콤보박스)
+  var rangeRowsForCombo = histRows.filter(function (r) { return r.t >= gState.logFrom && r.t <= gState.logTo; });
+  var lnSet = {}, lnOpts = [];
+  rangeRowsForCombo.forEach(function (r) { if (!lnSet[r.name]) { lnSet[r.name] = 1; lnOpts.push(r.name); } });
+  lnOpts.sort(function (a, b) { return a.localeCompare(b, "ko"); });
+  var lnDis = {};
+  gState.logNames.forEach(function (nm) { lnDis[nm] = true; });
+  comboBind({
+    id: "g-lname",
+    options: lnOpts,
+    disabled: lnDis,
+    onPick: function (nm) {
+      if (!nm) return;
+      if (gState.logNames.indexOf(nm) < 0) gState.logNames.push(nm);
+      gRender();
+    }
+  });
   var lclr = byId("g-lclear");
   if (lclr) lclr.onclick = function () { gState.logNames = []; gRender(); };
   var lrms = gRoot.querySelectorAll("[data-lrm]");

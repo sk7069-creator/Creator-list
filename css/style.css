@@ -88,3 +88,4 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .xl-undogroup{display:inline-flex;gap:2px;margin-left:10px}
 .xl-ubtn{font-family:inherit;font-size:13px;padding:4px 9px;border:1px solid #d5d0c7;border-radius:4px;background:#fff;color:#666;cursor:pointer;line-height:1.2}
 .xl-ubtn:hover{background:#f2efe9;color:#222;border-color:#bbb}
+.xl-sign{font-size:9.5px;color:#c8c2b6;font-weight:600;letter-spacing:.04em;margin-left:6px;vertical-align:middle}

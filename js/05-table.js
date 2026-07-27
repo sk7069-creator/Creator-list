@@ -6,7 +6,7 @@ function render(){
   h.push('<div class="xl-wrap">');
   // 툴바
   h.push('<div class="xl-toolbar"><div class="xl-tleft">');
-  h.push('<span class="xl-title">AG-ENT 크리에이터 단가표</span>');
+  h.push('<span class="xl-title">AG-ENT 크리에이터 단가표 <span class="xl-sign">DEV by. JHDG</span></span>');
   h.push('<span class="xl-tabs">');
   h.push('<button class="xl-tab'+(activeTab==="kr"?" on":"")+'" data-tab="kr">국내 (만원)</button>');
   h.push('<button class="xl-tab'+(activeTab==="us"?" on":"")+'" data-tab="us">해외 (USD)</button>');
