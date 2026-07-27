@@ -39,28 +39,31 @@ function comboBind(cfg) {
   function renderList(filter) {
     var q = (filter || "").toLowerCase().replace(/\s/g, "");
     var html = [];
-    var shown = 0;
-    options.forEach(function (nm, idx) {
+    var visible = [];   // 화면에 보이는 항목의 원본 이름
+    options.forEach(function (nm) {
       var norm = String(nm).toLowerCase().replace(/\s/g, "");
       if (q && norm.indexOf(q) < 0) return;
-      shown++;
-      var dis = disabled[nm];
-      html.push('<div class="g-combo-item' + (dis ? " dis" : "") + '" data-idx="' + idx + '">'
+      var dis = !!disabled[nm];
+      var vi = visible.length;
+      visible.push(nm);
+      html.push('<div class="g-combo-item' + (dis ? " dis" : "") + '" data-vi="' + vi + '">'
         + gEsc(nm) + (dis ? ' <span class="g-combo-chk">선택됨</span>' : '') + '</div>');
     });
-    if (!shown) html.push('<div class="g-combo-empty">검색 결과 없음</div>');
+    if (!visible.length) html.push('<div class="g-combo-empty">검색 결과 없음</div>');
     list.innerHTML = html.join("");
 
     var items = list.querySelectorAll(".g-combo-item");
     for (var i = 0; i < items.length; i++) {
-      if (items[i].className.indexOf("dis") >= 0) continue;
-      items[i].onmousedown = function (e) {
-        e.preventDefault();
-        var idx = parseInt(this.getAttribute("data-idx"), 10);
-        var v = options[idx];   // 원본 이름 그대로 (인코딩 왕복 없음)
-        close();
-        if (cfg.onPick) cfg.onPick(v);
-      };
+      var vi = parseInt(items[i].getAttribute("data-vi"), 10);
+      var name = visible[vi];              // 이 항목의 실제 이름 (검색 결과 기준)
+      if (disabled[name]) continue;
+      (function (picked) {
+        items[i].onmousedown = function (e) {
+          e.preventDefault();
+          close();
+          if (cfg.onPick) cfg.onPick(picked);
+        };
+      })(name);
     }
   }
 
