@@ -261,9 +261,21 @@ function gRender() {
     var lastTxt = pkTrend.last
       ? (fmtDate(pkTrend.last) + " 변경")
       : "변경 이력 없음";
+    // 현재 단가 정보
+    var pkData = null;
+    for (var ci = 0; ci < curData.length; ci++) { if (curData[ci].n === pk) { pkData = curData[ci]; break; } }
+
     h.push('<div class="g-picksum">');
     h.push('<div class="g-picksum-h">' + gEsc(pk) + ' <span class="g-card-badge ' + badge[1] + '">' + badge[0] + '</span></div>');
     h.push('<div class="g-picksum-sub">' + lastTxt + '</div>');
+    // SNS 링크 아이콘
+    if (pkData) {
+      var links = [];
+      if (pkData.ig && /^https?:/i.test(pkData.ig)) links.push('<a class="g-sns ig" href="' + gEsc(pkData.ig) + '" target="_blank" rel="noopener" title="인스타그램">IG</a>');
+      if (pkData.tt && /^https?:/i.test(pkData.tt)) links.push('<a class="g-sns tt" href="' + gEsc(pkData.tt) + '" target="_blank" rel="noopener" title="틱톡">TT</a>');
+      if (pkData.yt && /^https?:/i.test(pkData.yt)) links.push('<a class="g-sns yt" href="' + gEsc(pkData.yt) + '" target="_blank" rel="noopener" title="유튜브">YT</a>');
+      if (links.length) h.push('<div class="g-snsrow">' + links.join("") + '</div>');
+    }
     h.push('</div>');
   }
   h.push('<button class="g-action" id="g-export-img">그래프 이미지 저장</button>');

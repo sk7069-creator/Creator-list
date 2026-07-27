@@ -101,7 +101,10 @@ function parseCurrent(text) {
     var rr = rows[i]; if (!rr) continue;
     var n = String(rr[0] || "").trim();
     if (!n || n.indexOf("*") === 0 || n.length > 25) continue;
-    out.push({ n: n, s1: gNum(rr[1]), s2: gNum(rr[2]), s3: gNum(rr[3]), fd: gNum(rr[4]), lf: gNum(rr[5]) });
+    out.push({
+      n: n, s1: gNum(rr[1]), s2: gNum(rr[2]), s3: gNum(rr[3]), fd: gNum(rr[4]), lf: gNum(rr[5]),
+      ig: String(rr[6] || "").trim(), tt: String(rr[7] || "").trim(), yt: String(rr[8] || "").trim()
+    });
   }
   return out;
 }

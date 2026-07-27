@@ -193,3 +193,11 @@ select.g-input{cursor:pointer}
 
 .g-ctl-avg{margin-left:auto;text-align:right}
 .g-ctl-avg label{display:block}
+
+/* SNS 링크 아이콘 (선택 크리에이터 요약) */
+.g-snsrow{display:flex;gap:6px;margin-top:8px;justify-content:flex-end}
+.g-sns{display:inline-flex;align-items:center;justify-content:center;width:34px;height:26px;border-radius:6px;font-size:11px;font-weight:800;text-decoration:none;color:#fff;letter-spacing:.02em;transition:transform .1s,opacity .1s}
+.g-sns:hover{transform:translateY(-1px);opacity:.9}
+.g-sns.ig{background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)}
+.g-sns.tt{background:#111}
+.g-sns.yt{background:#ff0000}
