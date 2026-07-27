@@ -299,7 +299,7 @@ function gRender() {
   }
 
   // 저장 버튼 (오른쪽 끝)
-  h.push('<div class="g-ctl g-ctl-right"><label>&nbsp;</label>');
+  h.push('<div class="g-ctl g-ctl-right">');
   h.push('<button class="g-action" id="g-export-img">그래프 이미지 저장</button>');
   h.push('</div>');
 

@@ -37,14 +37,15 @@ function comboBind(cfg) {
   var disabled = cfg.disabled || {};
 
   function renderList(filter) {
-    var q = (filter || "").toLowerCase();
+    var q = (filter || "").toLowerCase().replace(/\s/g, "");
     var html = [];
     var shown = 0;
-    options.forEach(function (nm) {
-      if (q && nm.toLowerCase().indexOf(q) < 0) return;
+    options.forEach(function (nm, idx) {
+      var norm = String(nm).toLowerCase().replace(/\s/g, "");
+      if (q && norm.indexOf(q) < 0) return;
       shown++;
       var dis = disabled[nm];
-      html.push('<div class="g-combo-item' + (dis ? " dis" : "") + '" data-v="' + gEsc(nm) + '">'
+      html.push('<div class="g-combo-item' + (dis ? " dis" : "") + '" data-idx="' + idx + '">'
         + gEsc(nm) + (dis ? ' <span class="g-combo-chk">선택됨</span>' : '') + '</div>');
     });
     if (!shown) html.push('<div class="g-combo-empty">검색 결과 없음</div>');
@@ -55,7 +56,8 @@ function comboBind(cfg) {
       if (items[i].className.indexOf("dis") >= 0) continue;
       items[i].onmousedown = function (e) {
         e.preventDefault();
-        var v = this.getAttribute("data-v");
+        var idx = parseInt(this.getAttribute("data-idx"), 10);
+        var v = options[idx];   // 원본 이름 그대로 (인코딩 왕복 없음)
         close();
         if (cfg.onPick) cfg.onPick(v);
       };
