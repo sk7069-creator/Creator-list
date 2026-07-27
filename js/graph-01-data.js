@@ -132,3 +132,87 @@ function snapshotAt(when) {
     return o;
   });
 }
+
+// ── 전체 평균 (현재 단가 기준, 특정 항목) ──
+function avgOfField(fieldKey) {
+  var sum = 0, cnt = 0;
+  curData.forEach(function (c) {
+    var v = c[fieldKey];
+    if (v != null && v !== "") { sum += Number(v); cnt++; }
+  });
+  return cnt ? Math.round(sum / cnt) : null;
+}
+
+// ── 가격대별 그룹 분류 (현재 숏폼 1채널 기준) ──
+// 500만원↑ / 200~500 / 200↓  (단위: 만원이므로 500 / 200)
+function priceGroup(v) {
+  if (v == null) return null;
+  if (v >= 500) return "high";   // 500만원 이상
+  if (v >= 200) return "mid";    // 200~500만원
+  return "low";                  // 200만원 미만
+}
+
+/**
+ * 그룹별 월 변동률 계산
+ * 각 크리에이터의 이력에서 "변경 건"마다 (변경폭/이전값)을 월 단위로 환산해 평균.
+ * 반환: { high:{all,up,down,n}, mid:{...}, low:{...} }
+ *   all: 방향 무관 평균 변동률(%), up: 상향만, down: 하향만, n: 표본 수
+ */
+function groupMonthlyRates() {
+  var groups = {
+    high: { upSum: 0, upN: 0, downSum: 0, downN: 0, allSum: 0, allN: 0, creators: {} },
+    mid:  { upSum: 0, upN: 0, downSum: 0, downN: 0, allSum: 0, allN: 0, creators: {} },
+    low:  { upSum: 0, upN: 0, downSum: 0, downN: 0, allSum: 0, allN: 0, creators: {} }
+  };
+
+  // 크리에이터별 현재 숏폼1 단가로 그룹 결정
+  var nameGroup = {};
+  curData.forEach(function (c) {
+    var g = priceGroup(c.s1);
+    if (g) nameGroup[c.n] = g;
+  });
+
+  // 이력의 각 변경 건을 순회
+  histRows.forEach(function (h) {
+    var g = nameGroup[h.name];
+    if (!g) return;
+    if (h.before == null || h.after == null || h.before === 0) return;
+    var pct = ((h.after - h.before) / h.before) * 100;   // 변동률 %
+    var G = groups[g];
+    G.allSum += Math.abs(pct); G.allN++;
+    if (pct > 0) { G.upSum += pct; G.upN++; }
+    else if (pct < 0) { G.downSum += Math.abs(pct); G.downN++; }
+    G.creators[h.name] = 1;
+  });
+
+  // 기간(개월 수) 계산: 이력 전체 범위
+  var months = 1;
+  if (histRows.length >= 2) {
+    var first = histRows[0].t, last = histRows[histRows.length - 1].t;
+    var days = (last - first) / 86400000;
+    months = Math.max(1, days / 30);
+  }
+
+  function pack(G) {
+    return {
+      all: G.allN ? +(G.allSum / months).toFixed(1) : null,
+      up: G.upN ? +(G.upSum / months).toFixed(1) : null,
+      down: G.downN ? +(G.downSum / months).toFixed(1) : null,
+      changes: G.allN,
+      creators: Object.keys(G.creators).length
+    };
+  }
+
+  return {
+    high: pack(groups.high),
+    mid: pack(groups.mid),
+    low: pack(groups.low),
+    months: months,
+    // 그룹별 현재 인원
+    counts: {
+      high: Object.keys(nameGroup).filter(function (n) { return nameGroup[n] === "high"; }).length,
+      mid: Object.keys(nameGroup).filter(function (n) { return nameGroup[n] === "mid"; }).length,
+      low: Object.keys(nameGroup).filter(function (n) { return nameGroup[n] === "low"; }).length
+    }
+  };
+}

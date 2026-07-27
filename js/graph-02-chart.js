@@ -181,3 +181,62 @@ function attachChartTooltip(container, unitLabel) {
     });
   }
 }
+
+/**
+ * 막대 차트 — 항목별 비교 (한 크리에이터의 여러 항목)
+ * bars: [{label, value, color}]
+ */
+function renderBarChart(bars, opts) {
+  opts = opts || {};
+  var W = opts.width || 980, H = opts.height || 380;
+  var padL = 76, padR = 24, padT = 24, padB = 56;
+  var iw = W - padL - padR, ih = H - padT - padB;
+  var unitLabel = opts.unitLabel || "";
+
+  var vals = bars.map(function (b) { return b.value; }).filter(function (v) { return v != null; });
+  if (!vals.length) return '<div class="g-empty">표시할 데이터가 없습니다.</div>';
+
+  var dataMax = Math.max.apply(null, vals);
+  var step = niceStep(dataMax / 5 || 1);
+  var max = Math.ceil(dataMax / step) * step;
+  if (max === 0) max = step;
+  var nSteps = Math.round(max / step);
+
+  function py(v) { return padT + ih - (v / max) * ih; }
+
+  var h = [];
+  h.push('<svg viewBox="0 0 ' + W + ' ' + H + '" class="g-svg" preserveAspectRatio="xMidYMid meet">');
+
+  if (unitLabel) {
+    h.push('<text x="' + (padL - 10) + '" y="' + (padT - 9) + '" text-anchor="end" class="g-axisunit">(' + gEsc(unitLabel) + ')</text>');
+  }
+
+  for (var g = 0; g <= nSteps; g++) {
+    var v = step * g;
+    var y = py(v);
+    h.push('<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" stroke="#e8e5df" stroke-width="1"/>');
+    h.push('<text x="' + (padL - 10) + '" y="' + (y + 4) + '" text-anchor="end" class="g-axis">' + fmtMoney(v) + '</text>');
+  }
+
+  var n = bars.length;
+  var slot = iw / n;
+  var bw = Math.min(80, slot * 0.5);
+
+  bars.forEach(function (b, i) {
+    if (b.value == null) return;
+    var cx = padL + slot * i + slot / 2;
+    var x = cx - bw / 2;
+    var y = py(b.value);
+    var barH = padT + ih - y;
+    var color = b.color || CHART_COLORS[i % CHART_COLORS.length];
+    h.push('<rect class="g-bar" x="' + x + '" y="' + y + '" width="' + bw + '" height="' + barH + '" rx="3" fill="' + color + '" '
+      + 'data-label="' + gEsc(b.label) + '" data-y="' + b.value + '"/>');
+    // 값 라벨
+    h.push('<text x="' + cx + '" y="' + (y - 7) + '" text-anchor="middle" class="g-barval">' + fmtMoney(b.value) + '</text>');
+    // 항목 라벨
+    h.push('<text x="' + cx + '" y="' + (H - padB + 20) + '" text-anchor="middle" class="g-axis">' + gEsc(b.label) + '</text>');
+  });
+
+  h.push('</svg>');
+  return h.join("");
+}

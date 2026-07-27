@@ -128,3 +128,40 @@ select.g-input{cursor:pointer}
 
 /* 개발자 서명 */
 .g-sign{font-size:10.5px;color:#c8c2b6;font-weight:600;letter-spacing:.04em}
+
+/* 전체 평균 표시 */
+.g-avg{font-size:20px;font-weight:800;color:#2E5CB8;letter-spacing:-.02em}
+.g-avg em{font-size:11px;font-weight:600;color:#999;font-style:normal;margin-left:1px}
+.g-avg-sub{font-size:11px;font-weight:400;color:#aaa;margin-left:6px}
+
+/* 라벨 힌트 */
+.g-lblhint{font-size:9.5px;font-weight:400;color:#b0a99c;text-transform:none;letter-spacing:0}
+
+/* 항목 다중 선택 버튼 */
+.g-fieldbtns{display:flex;flex-wrap:wrap;gap:5px}
+.g-fbtn{font-family:inherit;font-size:12px;height:32px;padding:0 12px;border:1px solid #e0dcd4;background:#fff;color:#666;border-radius:5px;cursor:pointer}
+.g-fbtn:hover{border-color:#2E5CB8;color:#2E5CB8}
+.g-fbtn.on{background:#2E5CB8;border-color:#2E5CB8;color:#fff;font-weight:600}
+
+/* 가격대별 변동률 */
+.g-rates{background:#fff;border:1px solid #ddd9d2;border-radius:8px;padding:18px 24px;margin-bottom:12px}
+.g-rates-title{font-size:13px;font-weight:700;margin-bottom:14px}
+.g-rates-note{font-size:10.5px;font-weight:400;color:#aaa;margin-left:8px}
+.g-rates-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.g-rate-card{border:1px solid #eee7dd;border-radius:7px;padding:14px 16px;background:#fcfbf8}
+.g-rate-h{font-size:12.5px;font-weight:700;color:#444;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.g-rate-cnt{font-size:10.5px;font-weight:500;color:#a99;background:#f0ebe2;padding:2px 7px;border-radius:9px}
+.g-rate-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:12px}
+.g-rate-lbl{color:#888}
+.g-rate-lbl.up{color:#c0392b}
+.g-rate-lbl.down{color:#1a7a3a}
+.g-rate-row b{font-size:14px;font-weight:800;color:#333}
+.g-rate-row b.up{color:#c0392b}
+.g-rate-row b.down{color:#1a7a3a}
+.g-rate-foot{font-size:10px;color:#b8b0a2;margin-top:8px;padding-top:8px;border-top:1px solid #eee7dd}
+.g-rate-empty{font-size:11.5px;color:#bbb;text-align:center;padding:20px 0}
+
+/* 막대 차트 */
+.g-barval{font-size:11px;font-weight:700;fill:#444;font-family:'Malgun Gothic',sans-serif}
+.g-bar{transition:opacity .15s}
+.g-bar:hover{opacity:.82}

@@ -8,6 +8,7 @@ var gState = {
   mode: "each",          // each(개별) | multi(선택 비교) | all(전체 평균)
   unit: "day",           // day | week | month | year
   field: "숏폼 1채널",
+  fields: ["숏폼 1채널"],   // 막대 비교용 다중 항목 (2개 이상이면 막대)
 
   // 중단: 그래프 대상 + 그래프 기간
   picked: [],            // 선택한 크리에이터
@@ -66,9 +67,26 @@ function allNames() {
 }
 
 // ── 그래프용 시계열 ──
+// 막대 모드 여부: 개별 보기 + 크리에이터 1명 + 항목 2개 이상
+function isBarMode() {
+  return gState.mode === "each" && gState.picked.length === 1 && gState.fields.length >= 2;
+}
+
+// 막대 데이터: 선택 크리에이터의 항목별 현재 단가
+function buildBars() {
+  var nm = gState.picked[0];
+  var bars = [];
+  gState.fields.forEach(function (f, i) {
+    var v = priceAt(nm, f, gState.gTo);
+    bars.push({ label: f, value: v, color: CHART_COLORS[i % CHART_COLORS.length] });
+  });
+  return { name: nm, bars: bars };
+}
+
 function buildSeries() {
   var buckets = makeBuckets(gState.gFrom, gState.gTo, gState.unit);
   var series = [];
+  var field = gState.mode === "each" ? gState.fields[0] : gState.field;
 
   if (gState.mode === "all") {
     var pts = buckets.map(function (b) {
@@ -85,7 +103,7 @@ function buildSeries() {
       ? (gState.picked.length ? [gState.picked[0]] : [])
       : gState.picked;
     names.slice(0, 8).forEach(function (nm) {
-      var pts = buckets.map(function (b) { return { x: b.key, y: priceAt(nm, gState.field, b.end) }; });
+      var pts = buckets.map(function (b) { return { x: b.key, y: priceAt(nm, field, b.end) }; });
       series.push({ label: nm, points: pts });
     });
   }
@@ -136,12 +154,55 @@ function gRender() {
   });
   h.push('</div></div>');
 
-  h.push('<div class="g-ctl"><label>항목</label><select id="g-field" class="g-input">');
-  FIELDS.forEach(function (f) {
-    h.push('<option value="' + gEsc(f) + '"' + (gState.field === f ? " selected" : "") + '>' + gEsc(f) + '</option>');
-  });
-  h.push('</select></div>');
+  // 항목 선택: 개별 모드에서는 여러 개(막대 비교), 그 외엔 하나
+  if (gState.mode === "each") {
+    h.push('<div class="g-ctl"><label>항목 <span class="g-lblhint">여러 개 선택 시 막대 비교</span></label>');
+    h.push('<div class="g-fieldbtns">');
+    FIELDS.forEach(function (f) {
+      var on = gState.fields.indexOf(f) >= 0;
+      h.push('<button class="g-fbtn' + (on ? " on" : "") + '" data-field="' + gEsc(f) + '">' + gEsc(f) + '</button>');
+    });
+    h.push('</div></div>');
+  } else {
+    h.push('<div class="g-ctl"><label>항목</label><select id="g-field" class="g-input">');
+    FIELDS.forEach(function (f) {
+      h.push('<option value="' + gEsc(f) + '"' + (gState.field === f ? " selected" : "") + '>' + gEsc(f) + '</option>');
+    });
+    h.push('</select></div>');
+  }
+
+  // 전체 평균 (현재 선택 항목)
+  var avgField = gState.mode === "each" ? gState.fields[0] : gState.field;
+  var avgV = avgOfField(FIELD_KEY[avgField]);
+  h.push('<div class="g-ctl g-ctl-right"><label>전체 평균 · ' + gEsc(avgField) + '</label>');
+  h.push('<div class="g-avg">' + (avgV == null ? "-" : fmtMoney(avgV)) + ' <em>' + UNIT_LABEL + '</em> '
+    + '<span class="g-avg-sub">' + curData.length + '명</span></div>');
   h.push('</div>');
+
+  h.push('</div>');
+
+  // ═══ 가격대별 월 변동률 ═══
+  var rates = groupMonthlyRates();
+  h.push('<div class="g-rates">');
+  h.push('<div class="g-rates-title">가격대별 월 변동률 <span class="g-rates-note">숏폼 1채널 단가 기준 · 이력 ' + rates.months.toFixed(1) + '개월</span></div>');
+  h.push('<div class="g-rates-grid">');
+  [["high", "500만원 이상", rates.high, rates.counts.high],
+   ["mid", "200~500만원", rates.mid, rates.counts.mid],
+   ["low", "200만원 미만", rates.low, rates.counts.low]].forEach(function (grp) {
+    var key = grp[0], label = grp[1], r = grp[2], cnt = grp[3];
+    h.push('<div class="g-rate-card">');
+    h.push('<div class="g-rate-h">' + label + ' <span class="g-rate-cnt">' + cnt + '명</span></div>');
+    if (!r.changes) {
+      h.push('<div class="g-rate-empty">변동 이력 없음</div>');
+    } else {
+      h.push('<div class="g-rate-row"><span class="g-rate-lbl">전체</span><b>' + (r.all == null ? "-" : r.all + "%") + '</b></div>');
+      h.push('<div class="g-rate-row"><span class="g-rate-lbl up">▲ 상향</span><b class="up">' + (r.up == null ? "-" : r.up + "%") + '</b></div>');
+      h.push('<div class="g-rate-row"><span class="g-rate-lbl down">▼ 하향</span><b class="down">' + (r.down == null ? "-" : r.down + "%") + '</b></div>');
+      h.push('<div class="g-rate-foot">변동 ' + r.changes + '건 · ' + r.creators + '명</div>');
+    }
+    h.push('</div>');
+  });
+  h.push('</div></div>');
 
   // ═══ 중단: 크리에이터 선택 + 그래프 기간 ═══
   h.push('<div class="g-panel">');
@@ -186,40 +247,62 @@ function gRender() {
     h.push('</div>');
   }
 
-  // ═══ 토탈 요약 카드 ═══
-  var built = buildSeries();
-  if (built.series.length) {
-    h.push('<div class="g-cards">');
-    built.series.forEach(function (s, si) {
-      var pts = s.points.filter(function (p) { return p.y != null; });
-      if (!pts.length) return;
-      var color = CHART_COLORS[si % CHART_COLORS.length];
-      var latest = pts[pts.length - 1].y;
-      var first = pts[0].y;
-      var diff = latest - first;
-      var maxv = Math.max.apply(null, pts.map(function (p) { return p.y; }));
-      var minv = Math.min.apply(null, pts.map(function (p) { return p.y; }));
-      var diffCls = diff > 0 ? "up" : (diff < 0 ? "down" : "");
-      var diffTxt = diff > 0 ? "▲ " + fmtMoney(diff) : (diff < 0 ? "▼ " + fmtMoney(-diff) : "변동 없음");
-      h.push('<div class="g-card">');
-      h.push('<div class="g-card-h"><i style="background:' + color + '"></i>' + gEsc(s.label) + '</div>');
-      h.push('<div class="g-card-v">' + fmtMoney(latest) + ' <em>' + UNIT_LABEL + '</em></div>');
-      h.push('<div class="g-card-sub">기간 변동 <b class="' + diffCls + '">' + diffTxt + '</b></div>');
-      h.push('<div class="g-card-mm">최고 ' + fmtMoney(maxv) + ' · 최저 ' + fmtMoney(minv) + '</div>');
+  // ═══ 토탈 요약 카드 + 차트 ═══
+  var barMode = isBarMode();
+
+  if (barMode) {
+    // 막대 모드: 한 크리에이터의 항목별 현재 단가 비교
+    var bd = buildBars();
+    var valid = bd.bars.filter(function (b) { return b.value != null; });
+    if (valid.length) {
+      h.push('<div class="g-cards">');
+      valid.forEach(function (b) {
+        h.push('<div class="g-card">');
+        h.push('<div class="g-card-h"><i style="background:' + b.color + '"></i>' + gEsc(b.label) + '</div>');
+        h.push('<div class="g-card-v">' + fmtMoney(b.value) + ' <em>' + UNIT_LABEL + '</em></div>');
+        h.push('</div>');
+      });
       h.push('</div>');
-    });
+    }
+    h.push('<div class="g-chart" id="g-chart">');
+    h.push('<div class="g-charttitle">' + gEsc(bd.name) + ' · 항목별 단가 비교 <span class="g-unittag">단위: ' + UNIT_LABEL + '</span></div>');
+    h.push(renderBarChart(bd.bars, { unitLabel: UNIT_LABEL }));
+    h.push('</div>');
+  } else {
+    // 선 모드
+    var built = buildSeries();
+    if (built.series.length) {
+      h.push('<div class="g-cards">');
+      built.series.forEach(function (s, si) {
+        var pts = s.points.filter(function (p) { return p.y != null; });
+        if (!pts.length) return;
+        var color = CHART_COLORS[si % CHART_COLORS.length];
+        var latest = pts[pts.length - 1].y;
+        var first = pts[0].y;
+        var diff = latest - first;
+        var maxv = Math.max.apply(null, pts.map(function (p) { return p.y; }));
+        var minv = Math.min.apply(null, pts.map(function (p) { return p.y; }));
+        var diffCls = diff > 0 ? "up" : (diff < 0 ? "down" : "");
+        var diffTxt = diff > 0 ? "▲ " + fmtMoney(diff) : (diff < 0 ? "▼ " + fmtMoney(-diff) : "변동 없음");
+        h.push('<div class="g-card">');
+        h.push('<div class="g-card-h"><i style="background:' + color + '"></i>' + gEsc(s.label) + '</div>');
+        h.push('<div class="g-card-v">' + fmtMoney(latest) + ' <em>' + UNIT_LABEL + '</em></div>');
+        h.push('<div class="g-card-sub">기간 변동 <b class="' + diffCls + '">' + diffTxt + '</b></div>');
+        h.push('<div class="g-card-mm">최고 ' + fmtMoney(maxv) + ' · 최저 ' + fmtMoney(minv) + '</div>');
+        h.push('</div>');
+      });
+      h.push('</div>');
+    }
+    var titleField = gState.mode === "each" ? gState.fields[0] : gState.field;
+    h.push('<div class="g-chart" id="g-chart">');
+    if (!built.series.length) {
+      h.push('<div class="g-empty">크리에이터를 선택하면 추이가 표시됩니다.</div>');
+    } else {
+      h.push('<div class="g-charttitle">' + gEsc(titleField) + ' · ' + fmtDate(gState.gFrom) + ' ~ ' + fmtDate(gState.gTo) + ' <span class="g-unittag">단위: ' + UNIT_LABEL + '</span></div>');
+      h.push(renderChart(built.series, built.buckets, { alwaysLegend: gState.mode !== "each", unitLabel: UNIT_LABEL }));
+    }
     h.push('</div>');
   }
-
-  // ═══ 차트 ═══
-  h.push('<div class="g-chart" id="g-chart">');
-  if (!built.series.length) {
-    h.push('<div class="g-empty">크리에이터를 선택하면 추이가 표시됩니다.</div>');
-  } else {
-    h.push('<div class="g-charttitle">' + gEsc(gState.field) + ' · ' + fmtDate(gState.gFrom) + ' ~ ' + fmtDate(gState.gTo) + ' <span class="g-unittag">단위: ' + UNIT_LABEL + '</span></div>');
-    h.push(renderChart(built.series, built.buckets, { alwaysLegend: gState.mode !== "each", unitLabel: UNIT_LABEL }));
-  }
-  h.push('</div>');
 
   // ═══ 하단: 변동 내역 ═══
   var logs = filteredLogs();
@@ -355,6 +438,23 @@ function gBind() {
   }
   var fs = byId("g-field");
   if (fs) fs.onchange = function () { gState.field = this.value; gRender(); };
+
+  // 항목 다중 선택 버튼 (개별 모드)
+  var fbtns = gRoot.querySelectorAll(".g-fbtn");
+  for (var fb = 0; fb < fbtns.length; fb++) {
+    fbtns[fb].onclick = function () {
+      var f = this.getAttribute("data-field");
+      var idx = gState.fields.indexOf(f);
+      if (idx >= 0) {
+        if (gState.fields.length > 1) gState.fields.splice(idx, 1);  // 최소 1개 유지
+      } else {
+        gState.fields.push(f);
+      }
+      // 첫 항목을 대표 field로 동기화 (선 모드용)
+      gState.field = gState.fields[0];
+      gRender();
+    };
+  }
 
   // 중단 — 크리에이터 (검색 콤보박스)
   if (gState.mode !== "all") {
