@@ -31,6 +31,7 @@ var sel=null;        // {r1,c1,r2,c2}  (r: -1=헤더행, 0..=데이터, c: 열in
 var anchor=null;
 var dragging=false;  // false | "cell" | "row" | "col"
 var editingCell=null;
+var editingHeader=null;   // 편집 중인 헤더 열 인덱스
 var clipboardBuf=null; // 내부 잘라내기/복사 버퍼 (붙여넣기용) {rows:[[...]], cut:bool, di:[]}
 var editLog=loadLog();
 var logSearch="";

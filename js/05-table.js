@@ -46,9 +46,14 @@ function render(){
   COLS.forEach(function(c,ci){
     var inSel=selContains(-1,ci);
     var arrow=(sortState.key===c.key)?(sortState.dir>0?'▲':(sortState.dir<0?'▼':'⇅')):'⇅';
-    h.push('<th class="xl-th'+(inSel?' xl-sel':'')+'" data-r="-1" data-c="'+ci+'">'
-      +'<span class="xl-thlabel">'+esc(colLabel(c))+'</span>'
-      +'<span class="xl-sort" data-sort="'+c.key+'" title="정렬">'+arrow+'</span></th>');
+    if(editingHeader===ci){
+      h.push('<th class="xl-th xl-th-editing" data-r="-1" data-c="'+ci+'">'
+        +'<input class="xl-hinput" value="'+esc(colLabel(c))+'" data-col="'+ci+'"></th>');
+    }else{
+      h.push('<th class="xl-th'+(inSel?' xl-sel':'')+'" data-r="-1" data-c="'+ci+'">'
+        +'<span class="xl-thlabel">'+esc(colLabel(c))+'</span>'
+        +'<span class="xl-sort" data-sort="'+c.key+'" title="정렬">'+arrow+'</span></th>');
+    }
   });
   h.push('</tr></thead>');
   // ── 데이터 ──
@@ -199,6 +204,22 @@ function bind(vr){
   var sorts=root.querySelectorAll(".xl-sort");
   for(var s=0;s<sorts.length;s++){ sorts[s].onclick=function(ev){ ev.stopPropagation(); toggleSort(this.getAttribute("data-sort")); }; }
 
+  // 헤더 항목명 편집 커밋
+  var hin=root.querySelector(".xl-hinput");
+  if(hin){
+    function commitHeader(){
+      var ci=parseInt(hin.getAttribute("data-col"),10);
+      var v=hin.value.trim();
+      if(v && COLS[ci] && v!==COLS[ci].label){ COLS[ci].label=v; saveColLabels(); }
+      editingHeader=null; render();
+    }
+    hin.onblur=commitHeader;
+    hin.onkeydown=function(e){
+      if(e.key==="Enter"){ commitHeader(); e.preventDefault(); }
+      else if(e.key==="Escape"){ editingHeader=null; render(); }
+    };
+  }
+
   // 셀 + 헤더셀 드래그 선택
   var selCells=root.querySelectorAll("td.xl-td, th.xl-th");
   for(var k=0;k<selCells.length;k++){
@@ -217,9 +238,15 @@ function bind(vr){
       sel={r1:anchor.r,c1:anchor.c,r2:r,c2:c}; updateSelDom();
     };
     td.ondblclick=function(){
-      if(activeTab==="us"){ notify("해외 단가는 국내 단가에서 자동 계산됩니다. 국내 탭에서 수정하세요."); return; }
       var r=parseInt(this.getAttribute("data-r"),10), c=parseInt(this.getAttribute("data-c"),10);
-      if(r<0) return;
+      if(r<0){
+        // 헤더 항목명 편집
+        if(activeTab==="us"){ notify("해외 항목명은 국내 설정을 따릅니다. 국내 탭에서 수정하세요."); return; }
+        editingCell=null; editingHeader=c; render();
+        var hin=root.querySelector(".xl-hinput"); if(hin){ hin.focus(); hin.select(); }
+        return;
+      }
+      if(activeTab==="us"){ notify("해외 단가는 국내 단가에서 자동 계산됩니다. 국내 탭에서 수정하세요."); return; }
       editingCell={r:r,c:c}; render();
       var inp=root.querySelector(".xl-input"); if(inp){ inp.focus(); inp.select(); }
     };
@@ -454,47 +481,46 @@ function clearSelection(vr){
 }
 
 /**
- * 한 행에서 [dc1..dc2] 칸의 값을 지운다.
- * 병합 셀이 걸치면: 병합을 풀고 → 해당 칸 비우고 → 남은 칸이 2개 이상 연속이면 재병합.
+ * 한 행에서 [dc1..dc2] 칸을 지운다. (첫째 방식)
+ * 병합 셀이 걸치면:
+ *  - 병합의 끝(왼쪽 끝 또는 오른쪽 끝)부터 지워서 남는 칸들이 연속이면 → 병합 유지, 값 보존
+ *  - 남는 칸이 1개면 → 병합 없이 그 칸에 값
+ *  - 가운데를 질러 남는 칸이 둘로 갈라지면 → 병합 해제(각 칸 개별), 값은 왼쪽 끝 칸에 유지
  */
 function clearCellsInRow(row, dc1, dc2){
   var merges = row._m || [];
   var newMerges = [];
 
   merges.forEach(function(g){
-    // 삭제 범위와 병합이 안 겹치면 그대로 유지
     if(g.c2 < dc1 || g.c1 > dc2){ newMerges.push(g); return; }
 
-    // 겹치는 병합: 이 병합의 값(g.c1에 있던 값)을 확보
     var mergedVal = row[COLS[g.c1].key];
 
-    // 병합 구간 전체를 개별 칸으로 펼친 뒤, 삭제 범위 밖의 칸에 값을 되살릴지 결정
-    // 규칙: 병합의 원래 값은 "삭제되지 않고 남는 가장 왼쪽 칸"으로 이동
+    // 병합 구간에서 남는 칸들
     var survivors = [];
-    for(var c=g.c1; c<=g.c2; c++){
-      if(c < dc1 || c > dc2) survivors.push(c);   // 삭제 범위 밖 = 남는 칸
-    }
+    for(var c=g.c1; c<=g.c2; c++){ if(c < dc1 || c > dc2) survivors.push(c); }
 
-    // 일단 병합 구간 전체 값 비우기 (나중에 남는 칸에만 값 복원)
+    // 병합 구간 전체 비우기
     for(var cc=g.c1; cc<=g.c2; cc++){ row[COLS[cc].key]=""; }
 
-    if(survivors.length){
-      // 남는 칸 중 가장 왼쪽에 원래 값 복원
-      row[COLS[survivors[0]].key] = mergedVal;
-      // 남는 칸들이 연속 구간이면 재병합 (연속 구간별로 나눠서)
-      var runStart = survivors[0], prev = survivors[0];
-      for(var si=1; si<=survivors.length; si++){
-        var cur = survivors[si];
-        if(cur === prev+1){ prev = cur; continue; }
-        // 연속 구간 [runStart..prev] 마감
-        if(prev > runStart) newMerges.push({c1:runStart, c2:prev});
-        if(cur!=null){ runStart = cur; prev = cur; }
+    if(survivors.length >= 2){
+      // 남는 칸들이 연속인지 확인 (끝에서 지운 경우 연속)
+      var contiguous = (survivors[survivors.length-1] - survivors[0] + 1) === survivors.length;
+      if(contiguous){
+        // 병합 유지
+        row[COLS[survivors[0]].key] = mergedVal;
+        newMerges.push({c1:survivors[0], c2:survivors[survivors.length-1]});
+      } else {
+        // 가운데를 질러 갈라짐 → 병합 해제, 값은 왼쪽 끝 칸에만
+        row[COLS[survivors[0]].key] = mergedVal;
       }
+    } else if(survivors.length === 1){
+      row[COLS[survivors[0]].key] = mergedVal;
     }
-    // survivors가 없으면(병합 전체가 삭제 범위) 병합 사라짐
+    // 남는 칸 없으면 값·병합 소멸
   });
 
-  // 병합에 안 걸린 일반 칸들도 값 비우기
+  // 병합에 안 걸린 일반 칸 비우기
   for(var c3=dc1; c3<=dc2; c3++){
     var inMerge = merges.some(function(g){ return c3>=g.c1 && c3<=g.c2; });
     if(!inMerge) row[COLS[c3].key]="";

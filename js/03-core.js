@@ -21,6 +21,8 @@ function loadData(){
 function saveData(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(data)); }catch(e){} }
 function loadColW(){ try{ var s=localStorage.getItem(LS_W); if(s){ var p=JSON.parse(s); COLS.forEach(function(c){ if(p[c.key]) c.w=p[c.key]; }); } }catch(e){} }
 function saveColW(){ try{ var o={}; COLS.forEach(function(c){o[c.key]=c.w;}); localStorage.setItem(LS_W, JSON.stringify(o)); }catch(e){} }
+function loadColLabels(){ try{ var s=localStorage.getItem(LS_W+"_labels"); if(s){ var p=JSON.parse(s); COLS.forEach(function(c){ if(p[c.key]) c.label=p[c.key]; }); } }catch(e){} }
+function saveColLabels(){ try{ var o={}; COLS.forEach(function(c){o[c.key]=c.label;}); localStorage.setItem(LS_W+"_labels", JSON.stringify(o)); }catch(e){} }
 function assign(t){ for(var i=1;i<arguments.length;i++){var s=arguments[i]; for(var k in s) if(Object.prototype.hasOwnProperty.call(s,k)) t[k]=s[k];} return t; }
 function snapshot(){ hist.push(JSON.stringify(data)); if(hist.length>80) hist.shift(); future=[]; }
 function undo(){ if(!hist.length){notify("되돌릴 작업 없음");return;} future.push(JSON.stringify(data)); data=JSON.parse(hist.pop()); saveData(); render(); notify("실행취소"); }

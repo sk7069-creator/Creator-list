@@ -2,6 +2,7 @@
 
 // 저장된 열 너비 · 데이터 로드 (03-core.js의 함수 사용)
 loadColW();
+loadColLabels();
 data = loadData();
 
 // 최초 로드: 시트에서 데이터 가져오기 (실패 시 저장된 데이터로)

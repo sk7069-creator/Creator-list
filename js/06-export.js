@@ -2,9 +2,10 @@
 function copySelection(vr){
   if(!sel){ notify("복사할 셀을 선택하세요"); return; }
   var r1=Math.min(sel.r1,sel.r2), r2=Math.max(sel.r1,sel.r2), c1=Math.min(sel.c1,sel.c2), c2=Math.max(sel.c1,sel.c2);
-  var includeHeader=(r1<0), dr1=Math.max(0,r1);
   // ── 내부 버퍼 저장 (도구 안에서 붙여넣기용) ──
   var isRowMode=(c1===0 && c2===COLS.length-1); // 행 전체 선택이면 행 단위 복사
+  // 헤더 포함: 헤더행(r=-1)부터 선택했거나, 행 전체 복사 시(항목명이 있어야 이메일에서 보기 좋음)
+  var includeHeader=(r1<0) || isRowMode, dr1=Math.max(0,r1);
   var bufRows=[];
   for(var br=dr1;br<=r2;br++){
     var bo=vr[br]; if(!bo) continue;
@@ -213,6 +214,9 @@ function showMasterAlert(changes){
 
 document.addEventListener("keydown",function(e){
   if(editingCell) return;
+  // 검색창 등 입력 요소에 포커스가 있으면 표 단축키(삭제·복사 등) 발동 금지
+  var ae=document.activeElement;
+  if(ae && (ae.tagName==="INPUT" || ae.tagName==="TEXTAREA" || ae.isContentEditable)) return;
   var mod=e.ctrlKey||e.metaKey;
   if(mod && (e.key==="c"||e.key==="C")){ var vr=viewRows(); if(sel){ copySelection(vr); e.preventDefault(); } }
   else if(mod && (e.key==="x"||e.key==="X")){ var v2=viewRows(); if(sel){ cutSelection(v2); e.preventDefault(); } }
