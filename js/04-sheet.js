@@ -29,7 +29,7 @@ var HEADER_MAP={
   "인스타그램":"ig","인스타":"ig","instagram":"ig",
   "틱톡":"tt","tiktok":"tt",
   "유튜브":"yt","youtube":"yt",
-  "등급":"grade","세일즈등급":"grade","grade":"grade","G":"grade"
+  "등급":"grade","세일즈등급":"grade","grade":"grade","Grade":"grade"
 };
 // 안내문/참고사항 행 판별 (크리에이터 이름이 아님)
 function isNoteRow(name){

@@ -23,6 +23,12 @@ function render(){
   h.push('<button class="xl-btn" id="xl-xlsx">엑셀 다운로드</button>');
   h.push('<button class="xl-btn" id="xl-refresh" title="마스터 시트에서 최신 내용 다시 확인">↻ 시트 확인</button>');
   h.push('<button class="xl-btn" id="xl-reset" title="도구에서 수정한 내용을 버리고 마스터 시트 상태로 되돌립니다">초기화</button>');
+  // [임시 디버그] 등급 읽힘 상태 표시
+  (function(){
+    var g1=0,g0=0,gx=0;
+    data.forEach(function(r){ if(String(r.grade)==="1")g1++; else if(String(r.grade)==="0")g0++; else gx++; });
+    h.push('<span style="font-size:11px;color:#a15c00;margin-left:6px" title="적극/소극/미인식">등급 '+g1+'·'+g0+'·'+gx+'</span>');
+  })();
   if(Object.keys(hiddenCols).length){
     h.push('<button class="xl-btn xl-btn-warn" id="xl-showcols" title="견적용으로 지운 열을 다시 표시 (원본 데이터는 유지됨)">↩️ 지운 열 복구 ('+Object.keys(hiddenCols).length+')</button>');
   }
