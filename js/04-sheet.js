@@ -76,8 +76,14 @@ function csvToData(text){
     var rr=rows[i]; if(!rr) continue;
     var obj={id:"", n:"",s1:"",s2:"",s3:"",fd:"",lf:"",ig:"",tt:"",yt:"",grade:""};
     colMap.forEach(function(key,ci){ if(key){ var v=String(rr[ci]==null?"":rr[ci]).trim(); if(key==="s1"||key==="s2"||key==="s3"||key==="fd"||key==="lf"){ v=v.replace(/[^0-9]/g,""); } obj[key]=v; } });
-    // 등급이 헤더로 안 잡히면 K열(인덱스 10)을 직접 시도
-    if(obj.grade==="" && rr.length>10){ var gv=String(rr[10]==null?"":rr[10]).trim(); if(gv==="0"||gv==="1") obj.grade=gv; }
+    // 등급: 헤더로 안 잡히면 유튜브(인덱스 8) 뒤 칸들 중 "0"/"1" 값을 등급으로 인식
+    // (수정시각 열이 있든 없든, 열이 밀리든 상관없이 잡음)
+    if(obj.grade===""){
+      for(var gk=9; gk<rr.length; gk++){
+        var gv=String(rr[gk]==null?"":rr[gk]).trim();
+        if(gv==="0"||gv==="1"||gv==="0.0"||gv==="1.0"){ obj.grade=gv.charAt(0); break; }
+      }
+    }
     if(!obj.n) continue;
     // 안내문/참고사항 행은 크리에이터가 아님 → 별도 보관
     if(isNoteRow(obj.n)){ if(!noteText) noteText=String(rr.join(" ")).replace(/\s*,\s*/g," ").trim(); continue; }
