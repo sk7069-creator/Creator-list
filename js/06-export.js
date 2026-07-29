@@ -221,6 +221,11 @@ document.addEventListener("keydown",function(e){
   else if(mod && (e.key==="y"||e.key==="Y")){ redo(); e.preventDefault(); }
   else if(mod && (e.key==="a"||e.key==="A")){ var v4=viewRows(); sel={r1:-1,c1:0,r2:v4.length-1,c2:COLS.length-1}; render(); e.preventDefault(); }
   else if(e.key==="Delete"||e.key==="Backspace"){ var v5=viewRows(); if(sel){ clearSelection(v5); e.preventDefault(); } }
+  else if(mod && (e.key==="-"||e.key==="Subtract")){
+    // Ctrl+- : 선택된 행 삭제
+    var v7=viewRows();
+    if(sel){ delSelectedRows(v7); e.preventDefault(); }
+  }
   else if((e.key==="d"||e.key==="D")&&!mod){
     // 행 또는 열이 통째로 선택된 상태에서만 삭제
     var v6=viewRows();

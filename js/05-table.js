@@ -94,7 +94,7 @@ function render(){
   // 상태바
   h.push('<div class="xl-note">'+esc(currentNote())+'</div>');
   h.push('<div class="xl-status"><span>'+(sel?selDesc():'셀·행·열을 선택하세요 (우클릭 = 메뉴)')+'</span>');
-  h.push('<span class="xl-hint">드래그 선택 → 우클릭/Ctrl+C 복사 → 메일·엑셀 붙여넣기</span></div>');
+  h.push('<span class="xl-hint">드래그 선택 → 우클릭/Ctrl+C 복사 · 행 삭제 Ctrl+- · 아래로 드래그 시 자동 스크롤</span></div>');
   h.push('</div>');
   root.innerHTML=h.join("");
   bind(vr);
@@ -272,7 +272,60 @@ function updateSelDom(){
   var sb=root.querySelector(".xl-status span"); if(sb&&sel) sb.textContent=selDesc();
 }
 
-document.addEventListener("mouseup",function(){ dragging=false; });
+document.addEventListener("mouseup",function(){ dragging=false; stopAutoScroll(); });
+
+// ===== 드래그 중 자동 스크롤 =====
+var autoScrollTimer=null;
+var lastMouseY=0;
+function stopAutoScroll(){ if(autoScrollTimer){ clearInterval(autoScrollTimer); autoScrollTimer=null; } }
+document.addEventListener("mousemove",function(e){
+  if(!dragging){ stopAutoScroll(); return; }
+  lastMouseY=e.clientY;
+  var scroller=root&&root.querySelector(".xl-scroll");
+  if(!scroller){ stopAutoScroll(); return; }
+  var rect=scroller.getBoundingClientRect();
+  var EDGE=48;          // 가장자리 감지 영역(px)
+  var MAX_SPEED=18;     // 최대 스크롤 속도(px/frame)
+  var speed=0;
+  if(e.clientY > rect.bottom - EDGE){
+    // 아래쪽 가장자리 → 아래로 스크롤 (가까울수록 빠르게)
+    var d=Math.min(EDGE, e.clientY-(rect.bottom-EDGE));
+    speed=Math.ceil((d/EDGE)*MAX_SPEED);
+  } else if(e.clientY < rect.top + EDGE){
+    // 위쪽 가장자리 → 위로 스크롤
+    var d2=Math.min(EDGE, (rect.top+EDGE)-e.clientY);
+    speed=-Math.ceil((d2/EDGE)*MAX_SPEED);
+  }
+  if(speed!==0){
+    if(!autoScrollTimer){
+      autoScrollTimer=setInterval(function(){
+        scroller.scrollTop+=speed;
+        // 스크롤하면서 마우스 아래 행까지 선택 확장
+        extendSelToMouse(scroller);
+      },16);
+    }
+  } else {
+    stopAutoScroll();
+  }
+});
+
+// 자동 스크롤 중, 현재 마우스 y 위치의 행까지 선택 범위를 넓힘
+function extendSelToMouse(scroller){
+  if(!dragging||!anchor) return;
+  var rows=scroller.querySelectorAll("tbody tr[data-di]");
+  var targetRi=null;
+  for(var i=0;i<rows.length;i++){
+    if(rows[i].style.display==="none") continue;
+    var rr=rows[i].getBoundingClientRect();
+    if(lastMouseY>=rr.top && lastMouseY<=rr.bottom){ targetRi=i; break; }
+    if(lastMouseY>rr.bottom) targetRi=i;   // 마우스가 더 아래면 마지막 보이는 행
+  }
+  if(targetRi==null) return;
+  if(dragging==="row"){ sel={r1:anchor.r,c1:0,r2:targetRi,c2:COLS.length-1}; }
+  else if(dragging==="cell"){ sel={r1:anchor.r,c1:anchor.c,r2:targetRi,c2:sel?sel.c2:anchor.c}; }
+  else if(dragging==="col"){ sel={r1:anchor.r,c1:anchor.c,r2:targetRi,c2:sel?sel.c2:anchor.c}; }
+  updateSelDom();
+}
 
 // ===== 열 리사이즈 =====
 function startResize(ci, startX){
