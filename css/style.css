@@ -91,3 +91,6 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .xl-sign{font-size:9.5px;color:#c8c2b6;font-weight:600;letter-spacing:.04em;margin-left:6px;vertical-align:middle}
 .xl-hinput{width:100%;box-sizing:border-box;border:2px solid #2E5CB8;padding:3px 6px;font-family:inherit;font-size:12px;outline:none;text-align:center;background:#fff;font-weight:600}
 .xl-th-editing{padding:0!important}
+.xl-hidden{display:none!important}
+.xl-btn-warn{background:#fff4e5;border-color:#e0a458;color:#a15c00;font-weight:600}
+.xl-btn-warn:hover{background:#ffe9cc}

@@ -23,12 +23,15 @@ function render(){
   h.push('<button class="xl-btn" id="xl-xlsx">엑셀 다운로드</button>');
   h.push('<button class="xl-btn" id="xl-refresh" title="마스터 시트에서 최신 내용 다시 확인">↻ 시트 확인</button>');
   h.push('<button class="xl-btn" id="xl-reset" title="도구에서 수정한 내용을 버리고 마스터 시트 상태로 되돌립니다">초기화</button>');
+  if(Object.keys(hiddenCols).length){
+    h.push('<button class="xl-btn xl-btn-warn" id="xl-showcols" title="견적용으로 숨긴 열을 다시 표시">🔁 숨긴 열 보이기 ('+Object.keys(hiddenCols).length+')</button>');
+  }
   h.push('<a class="xl-btn xl-btn-link" href="graph.html" title="단가 변동 추이 보기">📈 변동 추이</a>');
   h.push('<a class="xl-btn xl-btn-link" href="/api/auth/logout" title="로그아웃">로그아웃</a>');
   h.push('</div></div>');
   // 표
   h.push('<div class="xl-scroll"><table class="xl-table" style="width:'+totalW+'px"><colgroup><col style="width:40px">');
-  COLS.forEach(function(c){ h.push('<col style="width:'+c.w+'px">'); });
+  COLS.forEach(function(c){ h.push('<col class="'+(hiddenCols[c.key]?'xl-hidden':'')+'" style="width:'+c.w+'px">'); });
   h.push('</colgroup>');
   // ── 1행: 엑셀 열 라벨 A B C ... (클릭=열 선택, 우클릭=열 메뉴, 경계=리사이즈) ──
   h.push('<thead>');
@@ -36,7 +39,7 @@ function render(){
   h.push('<th class="xl-corner" id="xl-selall" title="전체 선택"></th>');
   COLS.forEach(function(c,ci){
     var on=colSelected(ci);
-    h.push('<th class="xl-alpha'+(on?' xl-colsel':'')+'" data-col="'+ci+'">'+ALPHA[ci]
+    h.push('<th class="xl-alpha'+(on?' xl-colsel':'')+(hiddenCols[c.key]?' xl-hidden':'')+'" data-col="'+ci+'">'+ALPHA[ci]
       +'<span class="xl-resize" data-col="'+ci+'"></span></th>');
   });
   h.push('</tr>');
@@ -47,10 +50,10 @@ function render(){
     var inSel=selContains(-1,ci);
     var arrow=(sortState.key===c.key)?(sortState.dir>0?'▲':(sortState.dir<0?'▼':'⇅')):'⇅';
     if(editingHeader===ci){
-      h.push('<th class="xl-th xl-th-editing" data-r="-1" data-c="'+ci+'">'
+      h.push('<th class="xl-th xl-th-editing'+(hiddenCols[c.key]?' xl-hidden':'')+'" data-r="-1" data-c="'+ci+'">'
         +'<input class="xl-hinput" value="'+esc(colLabel(c))+'" data-col="'+ci+'"></th>');
     }else{
-      h.push('<th class="xl-th'+(inSel?' xl-sel':'')+'" data-r="-1" data-c="'+ci+'">'
+      h.push('<th class="xl-th'+(inSel?' xl-sel':'')+(hiddenCols[c.key]?' xl-hidden':'')+'" data-r="-1" data-c="'+ci+'">'
         +'<span class="xl-thlabel">'+esc(colLabel(c))+'</span>'
         +'<span class="xl-sort" data-sort="'+c.key+'" title="정렬">'+arrow+'</span></th>');
     }
@@ -71,12 +74,14 @@ function render(){
       var mg=null; for(var mi=0;mi<merges.length;mi++){ if(merges[mi].c1===ci){ mg=merges[mi]; break; } }
       var inSel=selContains(ri,ci);
       var chg=rowChanged||highlightCells[rowName+"|"+c.key];
-      var cls="xl-td"+(c.center?" xl-center":"")+(c.bold?" xl-bold":"")+(c.link?" xl-link":"")+(inSel?" xl-sel":"")+(chg?" xl-changed":"");
+      var cls="xl-td"+(c.center?" xl-center":"")+(c.bold?" xl-bold":"")+(c.link?" xl-link":"")+(inSel?" xl-sel":"")+(chg?" xl-changed":"")+(hiddenCols[c.key]?" xl-hidden":"");
       if(mg){
         var span=mg.c2-mg.c1+1;
         // 병합 구간 안의 어느 칸이든 변경됐으면 강조
         var mchg=rowChanged; for(var mc=mg.c1;mc<=mg.c2;mc++){ if(highlightCells[rowName+"|"+COLS[mc].key]) mchg=true; }
-        cls="xl-td xl-center xl-merged"+(inSel?" xl-sel":"")+(mchg?" xl-changed":"");
+        // 병합 구간이 전부 숨김이면 이 병합 셀도 숨김
+        var allHidden=true; for(var mh=mg.c1;mh<=mg.c2;mh++){ if(!hiddenCols[COLS[mh].key]) allHidden=false; }
+        cls="xl-td xl-center xl-merged"+(inSel?" xl-sel":"")+(mchg?" xl-changed":"")+(allHidden?" xl-hidden":"");
         if(editingCell&&editingCell.r===ri&&editingCell.c===ci){
           h.push('<td class="'+cls+' xl-editing" colspan="'+span+'" data-r="'+ri+'" data-c="'+ci+'"><input class="xl-input" value="'+esc(cellRaw(o.row,c))+'"></td>');
         }else{
@@ -165,6 +170,7 @@ function bind(vr){
   }
   var rf=byId("xl-refresh"); if(rf) rf.onclick=function(){ notify("마스터 시트 확인 중..."); fetchSheet(false, true); };
   var rs=byId("xl-reset"); if(rs) rs.onclick=function(){ resetToSheet(); };
+  var sc=byId("xl-showcols"); if(sc) sc.onclick=function(){ showAllColumns(); };
   byId("xl-undo").onclick=undo;
   byId("xl-redo").onclick=redo;
   var corner=byId("xl-selall"); if(corner){ corner.onclick=function(){ sel={r1:-1,c1:0,r2:vr.length-1,c2:COLS.length-1}; render(); }; }
@@ -446,8 +452,28 @@ function showColMenu(x,y,ci,vr){
     {label:"정렬 해제", fn:function(){ sortState={key:null,dir:0}; render(); }},
     {sep:true},
     {label:"선택 영역 지우기(값)", danger:true, fn:function(){ clearSelection(vr); }},
+    {sep:true},
+    {label:"이 열 숨기기 (견적용)", fn:function(){ hideColumns(ci); }},
     {label:"이 열 전체 비우기 (모든 행)", danger:true, fn:function(){ clearColumn(ci,vr); }}
   ]);
+}
+// 열 숨기기 (원본 유지, 화면·복사에서만 제외)
+function hideColumns(ci){
+  snapshot();
+  // 선택된 열 범위가 있으면 그 범위 전체, 아니면 클릭한 열 하나
+  var c1=ci, c2=ci;
+  if(sel && Math.min(sel.r1,sel.r2)<=-1){ c1=Math.min(sel.c1,sel.c2); c2=Math.max(sel.c1,sel.c2); }
+  var cnt=0;
+  for(var c=c1;c<=c2;c++){ if(!hiddenCols[COLS[c].key]){ hiddenCols[COLS[c].key]=true; cnt++; } }
+  sel=null; saveHiddenCols(); render();
+  notify(cnt+"개 열 숨김 (Ctrl+Z 또는 '숨긴 열 보이기'로 복구)");
+}
+function showAllColumns(){
+  var had=Object.keys(hiddenCols).length;
+  if(!had){ notify("숨긴 열이 없습니다"); return; }
+  snapshot();
+  hiddenCols={}; saveHiddenCols(); render();
+  notify("숨긴 열 "+had+"개 모두 표시");
 }
 
 // ===== 행/열 편집 동작 =====

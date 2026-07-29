@@ -32,6 +32,7 @@ var anchor=null;
 var dragging=false;  // false | "cell" | "row" | "col"
 var editingCell=null;
 var editingHeader=null;   // 편집 중인 헤더 열 인덱스
+var hiddenCols={};        // 숨긴 열 {key:true} — 견적용 임시 숨김 (원본 데이터는 유지)
 var clipboardBuf=null; // 내부 잘라내기/복사 버퍼 (붙여넣기용) {rows:[[...]], cut:bool, di:[]}
 var editLog=loadLog();
 var logSearch="";

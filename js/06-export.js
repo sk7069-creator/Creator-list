@@ -22,7 +22,7 @@ function copySelection(vr){
   clipboardBuf={rows:bufRows, c1:c1, rowMode:isRowMode};
   var tsvLines=[], htmlRows=[];
   if(includeHeader){
-    var hcells=[]; for(var c=c1;c<=c2;c++) hcells.push(COLS[c].label);
+    var hcells=[]; for(var c=c1;c<=c2;c++){ if(hiddenCols[COLS[c].key]) continue; hcells.push(COLS[c].label); }
     tsvLines.push(hcells.join("\t"));
     htmlRows.push('<tr>'+hcells.map(function(t){return '<td style="background:'+HEADER_BG+';border:1px solid '+BORDER+';padding:4px 8px;font-family:Malgun Gothic,sans-serif;font-size:12px;text-align:center;">'+esc(t)+'</td>';}).join("")+'</tr>');
   }
@@ -44,7 +44,9 @@ function copySelection(vr){
         hc.push('<td colspan="'+span+'" style="'+stm+'">'+esc(disp)+'</td>');
         cc=mg.c2+1;
       }else{
-        var col2=COLS[cc], raw2=cellRaw(o.row,col2), disp2=cellText(o.row,col2);
+        var col2=COLS[cc];
+        if(hiddenCols[col2.key]){ cc++; continue; }   // 숨긴 열은 복사 제외
+        var raw2=cellRaw(o.row,col2), disp2=cellText(o.row,col2);
         tcells.push(raw2.replace(/[\t\r\n]/g," "));
         var st='border:1px solid '+BORDER+';padding:4px 8px;font-family:Malgun Gothic,sans-serif;font-size:12px;'+(col2.center?'text-align:center;':'')+(col2.bold?'font-weight:700;':'')+(col2.link?'color:'+LINK+';':'');
         hc.push('<td style="'+st+'">'+esc(disp2)+'</td>');

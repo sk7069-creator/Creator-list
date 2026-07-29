@@ -24,9 +24,13 @@ function saveColW(){ try{ var o={}; COLS.forEach(function(c){o[c.key]=c.w;}); lo
 function loadColLabels(){ try{ var s=localStorage.getItem(LS_W+"_labels"); if(s){ var p=JSON.parse(s); COLS.forEach(function(c){ if(p[c.key]) c.label=p[c.key]; }); } }catch(e){} }
 function saveColLabels(){ try{ var o={}; COLS.forEach(function(c){o[c.key]=c.label;}); localStorage.setItem(LS_W+"_labels", JSON.stringify(o)); }catch(e){} }
 function assign(t){ for(var i=1;i<arguments.length;i++){var s=arguments[i]; for(var k in s) if(Object.prototype.hasOwnProperty.call(s,k)) t[k]=s[k];} return t; }
-function snapshot(){ hist.push(JSON.stringify(data)); if(hist.length>80) hist.shift(); future=[]; }
-function undo(){ if(!hist.length){notify("되돌릴 작업 없음");return;} future.push(JSON.stringify(data)); data=JSON.parse(hist.pop()); saveData(); render(); notify("실행취소"); }
-function redo(){ if(!future.length){notify("다시 실행할 작업 없음");return;} hist.push(JSON.stringify(data)); data=JSON.parse(future.pop()); saveData(); render(); notify("다시 실행"); }
+function loadHiddenCols(){ try{ var s=localStorage.getItem(LS_W+"_hidden"); if(s){ hiddenCols=JSON.parse(s)||{}; } }catch(e){ hiddenCols={}; } }
+function saveHiddenCols(){ try{ localStorage.setItem(LS_W+"_hidden", JSON.stringify(hiddenCols)); }catch(e){} }
+function snapState(){ return JSON.stringify({d:data, h:hiddenCols}); }
+function restoreState(s){ var o=JSON.parse(s); if(o&&o.d){ data=o.d; hiddenCols=o.h||{}; } else { data=JSON.parse(s); } saveData(); saveHiddenCols(); }
+function snapshot(){ hist.push(snapState()); if(hist.length>80) hist.shift(); future=[]; }
+function undo(){ if(!hist.length){notify("되돌릴 작업 없음");return;} future.push(snapState()); restoreState(hist.pop()); render(); notify("실행취소"); }
+function redo(){ if(!future.length){notify("다시 실행할 작업 없음");return;} hist.push(snapState()); restoreState(future.pop()); render(); notify("다시 실행"); }
 
 function num(v){ var s=String(v==null?"":v).replace(/[^0-9]/g,""); return s?parseInt(s,10):""; }
 function fmtNum(v){ var n=num(v); return n===""?"":n.toLocaleString(); }
