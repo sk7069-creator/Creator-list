@@ -460,12 +460,15 @@ function showColMenu(x,y,ci,vr){
     {label:"이 열 전체 비우기 (모든 행)", danger:true, fn:function(){ clearColumn(ci,vr); }}
   ]);
 }
-// 열 숨기기 (원본 유지, 화면·복사에서만 제외)
-function hideColumns(ci){
+// 열 지우기 (원본 유지, 화면·복사에서만 제외)
+// hideColumns(ci)         : 클릭한 열, 또는 열 선택 범위
+// hideColumns(c1, c2)     : 명시적 범위
+function hideColumns(ci, ciEnd){
   snapshot();
-  // 선택된 열 범위가 있으면 그 범위 전체, 아니면 클릭한 열 하나
-  var c1=ci, c2=ci;
-  if(sel && Math.min(sel.r1,sel.r2)<=-1){ c1=Math.min(sel.c1,sel.c2); c2=Math.max(sel.c1,sel.c2); }
+  var c1, c2;
+  if(ciEnd!=null){ c1=Math.min(ci,ciEnd); c2=Math.max(ci,ciEnd); }
+  else if(sel && Math.min(sel.r1,sel.r2)<=-1){ c1=Math.min(sel.c1,sel.c2); c2=Math.max(sel.c1,sel.c2); }
+  else { c1=ci; c2=ci; }
   var cnt=0;
   for(var c=c1;c<=c2;c++){ if(!hiddenCols[COLS[c].key]){ hiddenCols[COLS[c].key]=true; cnt++; } }
   sel=null; saveHiddenCols(); render();
