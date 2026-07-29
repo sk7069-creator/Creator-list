@@ -418,7 +418,8 @@ function showColMenu(x,y,ci,vr){
     {label:"내림차순 정렬 ▼", fn:function(){ sortState={key:COLS[ci].key,dir:-1}; sel=null; render(); }},
     {label:"정렬 해제", fn:function(){ sortState={key:null,dir:0}; render(); }},
     {sep:true},
-    {label:"이 열 값 전체 지우기", danger:true, fn:function(){ clearColumn(ci,vr); }}
+    {label:"선택 영역 지우기(값)", danger:true, fn:function(){ clearSelection(vr); }},
+    {label:"이 열 전체 비우기 (모든 행)", danger:true, fn:function(){ clearColumn(ci,vr); }}
   ]);
 }
 
@@ -445,12 +446,69 @@ function clearSelection(vr){
   if(!sel) return;
   var r1=Math.max(0,Math.min(sel.r1,sel.r2)), r2=Math.max(sel.r1,sel.r2), c1=Math.min(sel.c1,sel.c2), c2=Math.max(sel.c1,sel.c2);
   snapshot();
-  for(var r=r1;r<=r2;r++){ var o=vr[r]; if(!o) continue; for(var c=c1;c<=c2;c++){ data[o.di][COLS[c].key]=""; } }
+  for(var r=r1;r<=r2;r++){
+    var o=vr[r]; if(!o) continue;
+    clearCellsInRow(data[o.di], c1, c2);
+  }
   saveData(); render(); notify("선택 영역 값 지움");
 }
+
+/**
+ * 한 행에서 [dc1..dc2] 칸의 값을 지운다.
+ * 병합 셀이 걸치면: 병합을 풀고 → 해당 칸 비우고 → 남은 칸이 2개 이상 연속이면 재병합.
+ */
+function clearCellsInRow(row, dc1, dc2){
+  var merges = row._m || [];
+  var newMerges = [];
+
+  merges.forEach(function(g){
+    // 삭제 범위와 병합이 안 겹치면 그대로 유지
+    if(g.c2 < dc1 || g.c1 > dc2){ newMerges.push(g); return; }
+
+    // 겹치는 병합: 이 병합의 값(g.c1에 있던 값)을 확보
+    var mergedVal = row[COLS[g.c1].key];
+
+    // 병합 구간 전체를 개별 칸으로 펼친 뒤, 삭제 범위 밖의 칸에 값을 되살릴지 결정
+    // 규칙: 병합의 원래 값은 "삭제되지 않고 남는 가장 왼쪽 칸"으로 이동
+    var survivors = [];
+    for(var c=g.c1; c<=g.c2; c++){
+      if(c < dc1 || c > dc2) survivors.push(c);   // 삭제 범위 밖 = 남는 칸
+    }
+
+    // 일단 병합 구간 전체 값 비우기 (나중에 남는 칸에만 값 복원)
+    for(var cc=g.c1; cc<=g.c2; cc++){ row[COLS[cc].key]=""; }
+
+    if(survivors.length){
+      // 남는 칸 중 가장 왼쪽에 원래 값 복원
+      row[COLS[survivors[0]].key] = mergedVal;
+      // 남는 칸들이 연속 구간이면 재병합 (연속 구간별로 나눠서)
+      var runStart = survivors[0], prev = survivors[0];
+      for(var si=1; si<=survivors.length; si++){
+        var cur = survivors[si];
+        if(cur === prev+1){ prev = cur; continue; }
+        // 연속 구간 [runStart..prev] 마감
+        if(prev > runStart) newMerges.push({c1:runStart, c2:prev});
+        if(cur!=null){ runStart = cur; prev = cur; }
+      }
+    }
+    // survivors가 없으면(병합 전체가 삭제 범위) 병합 사라짐
+  });
+
+  // 병합에 안 걸린 일반 칸들도 값 비우기
+  for(var c3=dc1; c3<=dc2; c3++){
+    var inMerge = merges.some(function(g){ return c3>=g.c1 && c3<=g.c2; });
+    if(!inMerge) row[COLS[c3].key]="";
+  }
+
+  newMerges.sort(function(a,b){return a.c1-b.c1;});
+  if(newMerges.length) row._m = newMerges;
+  else delete row._m;
+}
 function clearColumn(ci,vr){
-  if(!confirm('"'+COLS[ci].label+'" 열 값을 전체 지울까요?')) return;
-  snapshot(); data.forEach(function(row){ row[COLS[ci].key]=""; }); saveData(); render(); notify(COLS[ci].label+" 열 지움");
+  if(!confirm('"'+COLS[ci].label+'" 열을 모든 행에서 비울까요?')) return;
+  snapshot();
+  data.forEach(function(row){ clearCellsInRow(row, ci, ci); });
+  saveData(); render(); notify(COLS[ci].label+" 열 비움");
 }
 
 // ===== 셀 병합 (가로, 엑셀 방식: 왼쪽 위 값만 유지) =====
