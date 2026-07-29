@@ -231,12 +231,11 @@ document.addEventListener("keydown",function(e){
     if(sel){ delSelectedRows(v7); e.preventDefault(); }
   }
   else if((e.key==="d"||e.key==="D")&&!mod){
-    // 행 또는 열이 통째로 선택된 상태에서만 삭제
+    // 행 전체 선택이면 행 삭제, 그 외(열 선택 등)는 선택 범위 값 지우기
     var v6=viewRows();
-    var rowMode = sel && Math.min(sel.c1,sel.c2)===0 && Math.max(sel.c1,sel.c2)===COLS.length-1;
-    var colMode = sel && Math.min(sel.r1,sel.r2)<=-1;
-    if(rowMode && !colMode){ delSelectedRows(v6); e.preventDefault(); }
-    else if(colMode){ var ci=Math.min(sel.c1,sel.c2); clearColumn(ci,v6); e.preventDefault(); }
+    var rowMode = sel && Math.min(sel.r1,sel.r2)>=0 && Math.min(sel.c1,sel.c2)===0 && Math.max(sel.c1,sel.c2)===COLS.length-1;
+    if(rowMode){ delSelectedRows(v6); e.preventDefault(); }
+    else if(sel){ clearSelection(v6); e.preventDefault(); }
   }
 });
 
