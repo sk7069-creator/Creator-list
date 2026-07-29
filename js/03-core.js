@@ -5,6 +5,15 @@ function loadData(){
     if(s){
       var p=JSON.parse(s);
       if(Array.isArray(p)&&p.length){
+        // 등급 기능 도입 전 저장본은 grade 필드가 없음 → 1회 폐기하고 시트에서 새로 받게 함
+        var gver=localStorage.getItem(LS_KEY+"_gv");
+        var hasGradeField=p.some(function(x){ return x && typeof x.grade!=="undefined"; });
+        if(gver!=="1" && !hasGradeField){
+          try{ localStorage.removeItem(LS_KEY); localStorage.setItem(LS_KEY+"_gv","1"); }catch(e){}
+          // 저장본 폐기 → SEED로 시작하되 곧바로 fetchSheet가 시트 데이터(등급 포함)로 덮음
+          return SEED.map(function(x,i){ return autoMerge(assign({}, x, {id:x.id||("c"+i)})); });
+        }
+        try{ localStorage.setItem(LS_KEY+"_gv","1"); }catch(e){}
         // 구버전 저장 데이터(병합정보 없음)는 1회만 자동 병합 적용
         var ver=localStorage.getItem(LS_KEY+"_mv");
         if(ver!=="1"){
@@ -15,7 +24,7 @@ function loadData(){
       }
     }
   }catch(e){}
-  try{ localStorage.setItem(LS_KEY+"_mv","1"); }catch(e){}
+  try{ localStorage.setItem(LS_KEY+"_mv","1"); localStorage.setItem(LS_KEY+"_gv","1"); }catch(e){}
   return SEED.map(function(x,i){ return autoMerge(assign({}, x, {id:x.id||("c"+i)})); });
 }
 function saveData(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(data)); }catch(e){} }
