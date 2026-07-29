@@ -94,3 +94,5 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .xl-hidden{display:none!important}
 .xl-btn-warn{background:#fff4e5;border-color:#e0a458;color:#a15c00;font-weight:600}
 .xl-btn-warn:hover{background:#ffe9cc}
+/* 세일즈 등급: 소극/파트너 = 옅은 회색 (적극은 기본 검정 볼드 유지) */
+.xl-grade-low{color:#999999!important;font-weight:400!important}

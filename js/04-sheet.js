@@ -28,7 +28,8 @@ var HEADER_MAP={
   "롱폼":"lf","long":"lf",
   "인스타그램":"ig","인스타":"ig","instagram":"ig",
   "틱톡":"tt","tiktok":"tt",
-  "유튜브":"yt","youtube":"yt"
+  "유튜브":"yt","youtube":"yt",
+  "등급":"grade","세일즈등급":"grade","grade":"grade","G":"grade"
 };
 // 안내문/참고사항 행 판별 (크리에이터 이름이 아님)
 function isNoteRow(name){
@@ -73,8 +74,10 @@ function csvToData(text){
   var noteText="";
   for(var i=hi+1;i<rows.length;i++){
     var rr=rows[i]; if(!rr) continue;
-    var obj={id:"", n:"",s1:"",s2:"",s3:"",fd:"",lf:"",ig:"",tt:"",yt:""};
+    var obj={id:"", n:"",s1:"",s2:"",s3:"",fd:"",lf:"",ig:"",tt:"",yt:"",grade:""};
     colMap.forEach(function(key,ci){ if(key){ var v=String(rr[ci]==null?"":rr[ci]).trim(); if(key==="s1"||key==="s2"||key==="s3"||key==="fd"||key==="lf"){ v=v.replace(/[^0-9]/g,""); } obj[key]=v; } });
+    // 등급이 헤더로 안 잡히면 K열(인덱스 10)을 직접 시도
+    if(obj.grade==="" && rr.length>10){ var gv=String(rr[10]==null?"":rr[10]).trim(); if(gv==="0"||gv==="1") obj.grade=gv; }
     if(!obj.n) continue;
     // 안내문/참고사항 행은 크리에이터가 아님 → 별도 보관
     if(isNoteRow(obj.n)){ if(!noteText) noteText=String(rr.join(" ")).replace(/\s*,\s*/g," ").trim(); continue; }

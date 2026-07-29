@@ -69,6 +69,8 @@ function render(){
     var merges=o.row._m||[];
     var rowName=o.row.n||"";
     var rowChanged=highlightCells[rowName+"|__row"];
+    // 세일즈 등급: grade "0" = 소극/파트너(회색), 그 외 = 적극(검정 볼드)
+    var gradeLow=(String(o.row.grade)==="0");
     var ci=0;
     while(ci<COLS.length){
       var c=COLS[ci];
@@ -81,7 +83,8 @@ function render(){
         var visSpan=0; for(var vs=mg.c1;vs<=mg.c2;vs++){ if(!hiddenCols[COLS[vs].key]) visSpan++; }
         if(visSpan>0){
           var mchg=rowChanged; for(var mc=mg.c1;mc<=mg.c2;mc++){ if(highlightCells[rowName+"|"+COLS[mc].key]) mchg=true; }
-          var cls="xl-td xl-center xl-merged"+(inSel?" xl-sel":"")+(mchg?" xl-changed":"");
+          var isDataCol=(["n","s1","s2","s3","fd","lf"].indexOf(c.key)>=0);
+          var cls="xl-td xl-center xl-merged"+(inSel?" xl-sel":"")+(mchg?" xl-changed":"")+(gradeLow&&isDataCol?" xl-grade-low":"");
           if(editingCell&&editingCell.r===ri&&editingCell.c===ci){
             h.push('<td class="'+cls+' xl-editing" colspan="'+visSpan+'" data-r="'+ri+'" data-c="'+ci+'"><input class="xl-input" value="'+esc(cellRaw(o.row,c))+'"></td>');
           }else{
@@ -91,7 +94,8 @@ function render(){
         ci=mg.c2+1;
       }else{
         if(hiddenCols[c.key]){ ci++; continue; }   // 지운 열은 안 그림
-        var cls2="xl-td"+(c.center?" xl-center":"")+(c.bold?" xl-bold":"")+(c.link?" xl-link":"")+(inSel?" xl-sel":"")+(chg?" xl-changed":"");
+        var isDataCol2=(["n","s1","s2","s3","fd","lf"].indexOf(c.key)>=0);
+        var cls2="xl-td"+(c.center?" xl-center":"")+(c.bold?" xl-bold":"")+(c.link?" xl-link":"")+(inSel?" xl-sel":"")+(chg?" xl-changed":"")+(gradeLow&&isDataCol2?" xl-grade-low":"");
         if(editingCell&&editingCell.r===ri&&editingCell.c===ci){
           h.push('<td class="'+cls2+' xl-editing" data-r="'+ri+'" data-c="'+ci+'"><input class="xl-input" value="'+esc(cellRaw(o.row,c))+'"></td>');
         }else{
