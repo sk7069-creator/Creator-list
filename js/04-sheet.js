@@ -74,6 +74,7 @@ function csvToData(text){
   var noteText="";
   for(var i=hi+1;i<rows.length;i++){
     var rr=rows[i]; if(!rr) continue;
+    if(typeof window!=="undefined" && !window.__rawFirstRow && String(rr[0]||"").trim() && !isNoteRow(rr[0])){ window.__rawFirstRow=rr.slice(); }
     var obj={id:"", n:"",s1:"",s2:"",s3:"",fd:"",lf:"",ig:"",tt:"",yt:"",grade:""};
     colMap.forEach(function(key,ci){ if(key){ var v=String(rr[ci]==null?"":rr[ci]).trim(); if(key==="s1"||key==="s2"||key==="s3"||key==="fd"||key==="lf"){ v=v.replace(/[^0-9]/g,""); } obj[key]=v; } });
     // 등급: 헤더로 안 잡히면 유튜브(인덱스 8) 뒤 칸들 중 "0"/"1" 값을 등급으로 인식
