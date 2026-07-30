@@ -85,9 +85,66 @@ function fallbackCopy(html, tsv, cb){
   }catch(e){ document.removeEventListener("copy",onCopy); cb(false); }
 }
 
-// ===== 3. 엑셀(.xls) 다운로드 — SpreadsheetML(XML) 방식, 라이브러리 불필요 =====
+// ===== 3. 엑셀(.xlsx) 다운로드 — SheetJS로 진짜 xlsx 생성 (병합·서식 포함) =====
 function downloadXLSX(snapData, snapLabel){
-  // snapData: 기준일 스냅샷 (없으면 현재 데이터)
+  var src = snapData
+    ? (activeTab === "us" ? toOverseasData(snapData) : snapData)
+    : currentData();
+
+  // SheetJS 없으면 옛 방식으로 폴백
+  if(typeof XLSX==="undefined" || !XLSX.utils){ return downloadXLSX_legacy(snapData, snapLabel); }
+
+  // ── 시트를 2차원 배열(AOA)로 구성 ──
+  var aoa=[];
+  aoa.push(COLS.map(function(c){ return colLabel(c); }));   // 헤더 행
+
+  var merges=[];   // 병합 정보 {s:{r,c}, e:{r,c}}
+  src.forEach(function(row, ri){
+    var rowArr=[];
+    for(var ci=0; ci<COLS.length; ci++){
+      var c=COLS[ci];
+      var val = c.type==="num" ? (num(row[c.key])==="" ? "" : num(row[c.key])) : String(row[c.key]==null?"":row[c.key]);
+      rowArr.push(val);
+    }
+    aoa.push(rowArr);
+    // 병합: row._m = [{c1,c2}] → 엑셀 행 인덱스는 ri+1 (헤더가 0행)
+    var ms = row._m || [];
+    ms.forEach(function(m){
+      if(m.c2>m.c1){ merges.push({ s:{r:ri+1, c:m.c1}, e:{r:ri+1, c:m.c2} }); }
+    });
+  });
+
+  // 안내문 (한 줄 비우고 A열에 전체 병합)
+  var noteRowIdx = aoa.length + 1;   // 빈 줄 다음
+  aoa.push([]);                       // 빈 줄
+  var noteArr=[currentNote()]; for(var k=1;k<COLS.length;k++) noteArr.push("");
+  aoa.push(noteArr);
+  merges.push({ s:{r:noteRowIdx, c:0}, e:{r:noteRowIdx, c:COLS.length-1} });
+
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!merges'] = merges;
+  ws['!cols'] = COLS.map(function(c){ return { wpx: c.w }; });
+
+  // 헤더 셀 배경색·굵게 (SheetJS 기본 빌드는 스타일 제한적이지만 병합·값은 확실)
+  var range = XLSX.utils.decode_range(ws['!ref']);
+  for(var cc=range.s.c; cc<=range.e.c; cc++){
+    var addr = XLSX.utils.encode_cell({r:0, c:cc});
+    if(ws[addr]) ws[addr].s = { fill:{fgColor:{rgb:"FCE5CD"}}, font:{bold:true}, alignment:{horizontal:"center"} };
+  }
+
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, activeTab==="us"?"Creator List":"크리에이터 단가");
+
+  var base = activeTab==="us" ? "AG-ENT_Creator_List_USD_" : "AG-ENT_크리에이터_단가표_";
+  var stampPart = snapLabel ? (snapLabel.replace(/-/g,"") + "_기준") : nowStr().replace(/[: ]/g,"").slice(0,12);
+  var fname = base + stampPart + ".xlsx";
+
+  XLSX.writeFile(wb, fname);   // 진짜 xlsx로 저장
+  notify(snapLabel ? ("엑셀 다운로드 · "+snapLabel+" 23:59 기준 ("+src.length+"명)") : ("엑셀 파일 다운로드 ("+src.length+"명)"));
+}
+
+// 옛 방식 (SheetJS 로드 실패 시 폴백) — .xls SpreadsheetML
+function downloadXLSX_legacy(snapData, snapLabel){
   var src = snapData
     ? (activeTab === "us" ? toOverseasData(snapData) : snapData)
     : currentData();
