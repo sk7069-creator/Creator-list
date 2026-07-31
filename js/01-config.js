@@ -28,6 +28,7 @@ var hist=[], future=[];
 var sortState={key:null, dir:0};
 var searchQ="";
 var sel=null;        // {r1,c1,r2,c2}  (r: -1=헤더행, 0..=데이터, c: 열index)
+var extraRows={};    // Ctrl+클릭으로 추가 선택한 행들 {ri:true} (비연속 다중 행 복사용)
 var anchor=null;
 var dragging=false;  // false | "cell" | "row" | "col"
 var editingCell=null;

@@ -136,11 +136,12 @@ function applyLiveFilter(val){
 }
 
 function selContains(r,c){
+  if(r>=0 && extraRows[r]) return true;   // 다중 선택된 행은 전체 열 선택 표시
   if(!sel) return false;
   var r1=Math.min(sel.r1,sel.r2), r2=Math.max(sel.r1,sel.r2), c1=Math.min(sel.c1,sel.c2), c2=Math.max(sel.c1,sel.c2);
   return r>=r1&&r<=r2&&c>=c1&&c<=c2;
 }
-function rowSelected(ri){ if(!sel) return false; var r1=Math.min(sel.r1,sel.r2),r2=Math.max(sel.r1,sel.r2),c1=Math.min(sel.c1,sel.c2),c2=Math.max(sel.c1,sel.c2); return ri>=r1&&ri<=r2&&c1===0&&c2===COLS.length-1; }
+function rowSelected(ri){ if(extraRows[ri]) return true; if(!sel) return false; var r1=Math.min(sel.r1,sel.r2),r2=Math.max(sel.r1,sel.r2),c1=Math.min(sel.c1,sel.c2),c2=Math.max(sel.c1,sel.c2); return ri>=r1&&ri<=r2&&c1===0&&c2===COLS.length-1; }
 function colSelected(ci){ if(!sel) return false; var c1=Math.min(sel.c1,sel.c2),c2=Math.max(sel.c1,sel.c2),r1=Math.min(sel.r1,sel.r2); return ci>=c1&&ci<=c2&&r1<=-1; }
 function selDesc(){
   var r1=Math.min(sel.r1,sel.r2),r2=Math.max(sel.r1,sel.r2),c1=Math.min(sel.c1,sel.c2),c2=Math.max(sel.c1,sel.c2);
@@ -242,6 +243,7 @@ function bind(vr){
       if(e.button===2) return; // 우클릭은 선택 유지
       if(editingCell){ commitEdit(vr); }
       var r=parseInt(this.getAttribute("data-r"),10), c=parseInt(this.getAttribute("data-c"),10);
+      if(Object.keys(extraRows).length){ extraRows={}; }   // 다중 선택 해제
       anchor={r:r,c:c}; sel={r1:r,c1:c,r2:r,c2:c}; dragging="cell";
       updateSelDom(); e.preventDefault();
     };
@@ -276,6 +278,19 @@ function bind(vr){
     rns[j].onmousedown=function(e){
       if(e.button===2) return;
       var r=parseInt(this.getAttribute("data-row"),10);
+      if(e.ctrlKey||e.metaKey){
+        // Ctrl+클릭: 이 행을 다중 선택에 토글 추가
+        // 먼저 현재 sel(단일/범위)을 extraRows로 흡수
+        if(sel && Math.min(sel.c1,sel.c2)===0 && Math.max(sel.c1,sel.c2)===COLS.length-1){
+          var sr1=Math.min(sel.r1,sel.r2), sr2=Math.max(sel.r1,sel.r2);
+          for(var sr=Math.max(0,sr1); sr<=sr2; sr++) extraRows[sr]=true;
+        }
+        if(extraRows[r]) delete extraRows[r]; else extraRows[r]=true;
+        sel=null; dragging=null;
+        render(); e.preventDefault(); return;
+      }
+      // 일반 클릭: 다중 선택 초기화하고 단일 행
+      extraRows={};
       anchor={r:r,c:0}; sel={r1:r,c1:0,r2:r,c2:COLS.length-1}; dragging="row";
       updateSelDom(); e.preventDefault();
     };

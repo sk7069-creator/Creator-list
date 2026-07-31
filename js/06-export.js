@@ -1,5 +1,60 @@
 /* AG-ENT 크리에이터 단가표 — 복사 · 엑셀 다운로드 · 수정 기록 · 알림 */
+// 지정된 행 인덱스 목록을 행 단위로 복사 (헤더 포함, 붙여서)
+function copyRowsByIndex(vr, rowsIdx){
+  if(!rowsIdx.length){ notify("복사할 행이 없습니다"); return; }
+  var tsvLines=[], htmlRows=[], bufRows=[];
+  var hcells=[]; for(var c=0;c<COLS.length;c++){ if(hiddenCols[COLS[c].key]) continue; hcells.push(colLabel(COLS[c])); }
+  tsvLines.push(hcells.join("\t"));
+  htmlRows.push('<tr>'+hcells.map(function(t){return '<td style="background:'+HEADER_BG+';border:1px solid '+BORDER+';padding:4px 8px;font-family:Malgun Gothic,sans-serif;font-size:12px;text-align:center;">'+esc(t)+'</td>';}).join("")+'</tr>');
+  rowsIdx.forEach(function(ri){
+    var o=vr[ri]; if(!o) return;
+    var tcells=[], hc=[], cc=0;
+    while(cc<COLS.length){
+      var col=COLS[cc];
+      var mg=(o.row._m||[]).filter(function(m){return m.c1===cc;})[0];
+      if(mg){
+        var visSpan=0; for(var vs=mg.c1;vs<=mg.c2;vs++){ if(!hiddenCols[COLS[vs].key]) visSpan++; }
+        if(visSpan>0){
+          var raw=cellRaw(o.row,col), disp=cellText(o.row,col);
+          tcells.push(raw.replace(/[\t\r\n]/g," "));
+          for(var k=1;k<visSpan;k++) tcells.push("");
+          hc.push('<td colspan="'+visSpan+'" style="border:1px solid '+BORDER+';padding:4px 8px;text-align:center;font-family:Malgun Gothic,sans-serif;font-size:12px;">'+esc(disp)+'</td>');
+        }
+        cc=mg.c2+1;
+      }else{
+        if(hiddenCols[col.key]){ cc++; continue; }
+        var raw2=cellRaw(o.row,col), disp2=cellText(o.row,col);
+        tcells.push(raw2.replace(/[\t\r\n]/g," "));
+        var st='border:1px solid '+BORDER+';padding:4px 8px;font-family:Malgun Gothic,sans-serif;font-size:12px;'+(col.center?'text-align:center;':'')+(col.bold?'font-weight:700;':'')+(col.link?'color:'+LINK+';':'');
+        hc.push('<td style="'+st+'">'+esc(disp2)+'</td>');
+        cc++;
+      }
+    }
+    tsvLines.push(tcells.join("\t"));
+    htmlRows.push('<tr>'+hc.join("")+'</tr>');
+    var copy={}; COLS.forEach(function(k){ copy[k.key]=o.row[k.key]; });
+    if(o.row._m) copy._m=JSON.parse(JSON.stringify(o.row._m));
+    bufRows.push(copy);
+  });
+  clipboardBuf={rows:bufRows, c1:0, rowMode:true};
+  var html='<table style="border-collapse:collapse">'+htmlRows.join("")+'</table>';
+  var tsv=tsvLines.join("\n");
+  copyDual(html, tsv, function(ok){ notify(ok?('복사 완료 ('+rowsIdx.length+'개 행, 헤더 포함). 붙여넣기(Ctrl+V)'):'복사 실패'); });
+}
+
 function copySelection(vr){
+  // 다중 선택(Ctrl+클릭) 행이 있으면 그 행들 + 현재 sel 범위를 모두 행 단위로 복사
+  var multi = Object.keys(extraRows).map(Number);
+  if(multi.length){
+    var set={};
+    multi.forEach(function(r){ set[r]=true; });
+    if(sel && Math.min(sel.c1,sel.c2)===0 && Math.max(sel.c1,sel.c2)===COLS.length-1){
+      var a=Math.max(0,Math.min(sel.r1,sel.r2)), b=Math.max(sel.r1,sel.r2);
+      for(var rr=a;rr<=b;rr++) set[rr]=true;
+    }
+    var rowsIdx=Object.keys(set).map(Number).sort(function(x,y){return x-y;});
+    return copyRowsByIndex(vr, rowsIdx);
+  }
   if(!sel){ notify("복사할 셀을 선택하세요"); return; }
   var r1=Math.min(sel.r1,sel.r2), r2=Math.max(sel.r1,sel.r2), c1=Math.min(sel.c1,sel.c2), c2=Math.max(sel.c1,sel.c2);
   // ── 내부 버퍼 저장 (도구 안에서 붙여넣기용) ──
@@ -22,7 +77,7 @@ function copySelection(vr){
   clipboardBuf={rows:bufRows, c1:c1, rowMode:isRowMode};
   var tsvLines=[], htmlRows=[];
   if(includeHeader){
-    var hcells=[]; for(var c=c1;c<=c2;c++){ if(hiddenCols[COLS[c].key]) continue; hcells.push(COLS[c].label); }
+    var hcells=[]; for(var c=c1;c<=c2;c++){ if(hiddenCols[COLS[c].key]) continue; hcells.push(colLabel(COLS[c])); }
     tsvLines.push(hcells.join("\t"));
     htmlRows.push('<tr>'+hcells.map(function(t){return '<td style="background:'+HEADER_BG+';border:1px solid '+BORDER+';padding:4px 8px;font-family:Malgun Gothic,sans-serif;font-size:12px;text-align:center;">'+esc(t)+'</td>';}).join("")+'</tr>');
   }
@@ -277,7 +332,7 @@ document.addEventListener("keydown",function(e){
   var ae=document.activeElement;
   if(ae && (ae.tagName==="INPUT" || ae.tagName==="TEXTAREA" || ae.isContentEditable)) return;
   var mod=e.ctrlKey||e.metaKey;
-  if(mod && (e.key==="c"||e.key==="C")){ var vr=viewRows(); if(sel){ copySelection(vr); e.preventDefault(); } }
+  if(mod && (e.key==="c"||e.key==="C")){ var vr=viewRowsRaw(false); if(sel){ copySelection(vr); e.preventDefault(); } }
   else if(mod && (e.key==="x"||e.key==="X")){ var v2=viewRows(); if(sel){ cutSelection(v2); e.preventDefault(); } }
   else if(mod && (e.key==="v"||e.key==="V")){ var v3=viewRows(); if(sel&&clipboardBuf){ pasteFromBuf(v3); e.preventDefault(); } }
   else if(mod && (e.key==="z"||e.key==="Z")){ undo(); e.preventDefault(); }
