@@ -136,7 +136,7 @@ function applyLiveFilter(val){
 }
 
 function selContains(r,c){
-  if(r>=0 && extraRows[r]) return true;   // 다중 선택된 행은 전체 열 선택 표시
+  if(extraRows[r]) return true;   // 다중 선택된 행(헤더 -1 포함)은 전체 열 선택 표시
   if(!sel) return false;
   var r1=Math.min(sel.r1,sel.r2), r2=Math.max(sel.r1,sel.r2), c1=Math.min(sel.c1,sel.c2), c2=Math.max(sel.c1,sel.c2);
   return r>=r1&&r<=r2&&c>=c1&&c<=c2;
@@ -182,7 +182,7 @@ function bind(vr){
   byId("xl-undo").onclick=undo;
   byId("xl-redo").onclick=redo;
   var corner=byId("xl-selall"); if(corner){ corner.onclick=function(){ extraRows={}; sel={r1:-1,c1:0,r2:vr.length-1,c2:COLS.length-1}; render(); }; }
-  var corner2=byId("xl-selall2"); if(corner2){ corner2.onclick=function(){ extraRows={}; sel={r1:-1,c1:0,r2:vr.length-1,c2:COLS.length-1}; render(); }; }
+  var corner2=byId("xl-selall2"); if(corner2){ corner2.onclick=function(){ extraRows={}; sel={r1:-1,c1:0,r2:-1,c2:COLS.length-1}; render(); }; }
 
   // 열 라벨(알파벳): 클릭=열선택, 우클릭=열메뉴
   var alphas=root.querySelectorAll(".xl-alpha");
@@ -244,7 +244,22 @@ function bind(vr){
       if(e.button===2) return; // 우클릭은 선택 유지
       if(editingCell){ commitEdit(vr); }
       var r=parseInt(this.getAttribute("data-r"),10), c=parseInt(this.getAttribute("data-c"),10);
-      if(Object.keys(extraRows).length){ extraRows={}; }   // 다중 선택 해제
+      // 헤더 행(r=-1) 클릭
+      if(r<0){
+        if(e.ctrlKey||e.metaKey){
+          // Ctrl+클릭: 현재 sel 범위를 다중 선택에 흡수하고 헤더 행 토글 추가
+          if(sel && Math.min(sel.c1,sel.c2)===0 && Math.max(sel.c1,sel.c2)===COLS.length-1){
+            var sr1=Math.min(sel.r1,sel.r2), sr2=Math.max(sel.r1,sel.r2);
+            for(var sr=sr1; sr<=sr2; sr++) extraRows[sr]=true;
+          }
+          if(extraRows[-1]) delete extraRows[-1]; else extraRows[-1]=true;
+          sel=null; dragging=null; render(); e.preventDefault(); return;
+        }
+        // 일반 클릭: 헤더 행만 선택
+        extraRows={}; anchor={r:-1,c:0}; sel={r1:-1,c1:0,r2:-1,c2:COLS.length-1}; dragging=null;
+        updateSelDom(); e.preventDefault(); return;
+      }
+      if(Object.keys(extraRows).length){ extraRows={}; }   // 데이터 셀 클릭 시 다중 선택 해제
       anchor={r:r,c:c}; sel={r1:r,c1:c,r2:r,c2:c}; dragging="cell";
       updateSelDom(); e.preventDefault();
     };
