@@ -332,7 +332,7 @@ document.addEventListener("keydown",function(e){
   var ae=document.activeElement;
   if(ae && (ae.tagName==="INPUT" || ae.tagName==="TEXTAREA" || ae.isContentEditable)) return;
   var mod=e.ctrlKey||e.metaKey;
-  if(mod && (e.key==="c"||e.key==="C")){ var vr=viewRowsRaw(false); if(sel){ copySelection(vr); e.preventDefault(); } }
+  if(mod && (e.key==="c"||e.key==="C")){ var vr=viewRowsRaw(false); if(sel||Object.keys(extraRows).length){ copySelection(vr); e.preventDefault(); } }
   else if(mod && (e.key==="x"||e.key==="X")){ var v2=viewRows(); if(sel){ cutSelection(v2); e.preventDefault(); } }
   else if(mod && (e.key==="v"||e.key==="V")){ var v3=viewRows(); if(sel&&clipboardBuf){ pasteFromBuf(v3); e.preventDefault(); } }
   else if(mod && (e.key==="z"||e.key==="Z")){ undo(); e.preventDefault(); }

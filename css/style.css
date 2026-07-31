@@ -22,7 +22,8 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .xl-resize:hover{background:#2E5CB8}
 .xl-corner{position:sticky;top:0;left:0;z-index:6;width:40px;background:#d8d4cc;border:1px solid #b8b4ac;cursor:pointer}
 .xl-corner:hover{background:#c8c4bc}
-.xl-corner2{position:sticky;left:0;z-index:5;width:40px;background:#e8e5df;border:1px solid #000}
+.xl-corner2{position:sticky;left:0;z-index:5;width:40px;background:#e8e5df;border:1px solid #000;cursor:pointer}
+.xl-corner2:hover{background:#d8d5cf}
 .xl-th{position:sticky;top:22px;z-index:2;background:#FCE5CD;border:1px solid #000;padding:5px 6px;font-weight:400;text-align:center;white-space:nowrap;cursor:cell;user-select:none}
 .xl-thlabel{pointer-events:none}
 .xl-sort{display:inline-block;margin-left:4px;color:#2E5CB8;font-size:10px;cursor:pointer;padding:0 2px;border-radius:2px}

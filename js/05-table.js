@@ -46,7 +46,7 @@ function render(){
   h.push('</tr>');
   // ── 2행: 실제 헤더 (셀처럼 선택 가능, r=-1) ──
   h.push('<tr>');
-  h.push('<th class="xl-corner2"></th>');
+  h.push('<th class="xl-corner2" id="xl-selall2"></th>');
   COLS.forEach(function(c,ci){
     if(hiddenCols[c.key]) return;
     var inSel=selContains(-1,ci);
@@ -181,7 +181,8 @@ function bind(vr){
   var sc=byId("xl-showcols"); if(sc) sc.onclick=function(){ showAllColumns(); };
   byId("xl-undo").onclick=undo;
   byId("xl-redo").onclick=redo;
-  var corner=byId("xl-selall"); if(corner){ corner.onclick=function(){ sel={r1:-1,c1:0,r2:vr.length-1,c2:COLS.length-1}; render(); }; }
+  var corner=byId("xl-selall"); if(corner){ corner.onclick=function(){ extraRows={}; sel={r1:-1,c1:0,r2:vr.length-1,c2:COLS.length-1}; render(); }; }
+  var corner2=byId("xl-selall2"); if(corner2){ corner2.onclick=function(){ extraRows={}; sel={r1:-1,c1:0,r2:vr.length-1,c2:COLS.length-1}; render(); }; }
 
   // 열 라벨(알파벳): 클릭=열선택, 우클릭=열메뉴
   var alphas=root.querySelectorAll(".xl-alpha");
@@ -302,7 +303,8 @@ function bind(vr){
     rns[j].oncontextmenu=function(e){
       e.preventDefault();
       var r=parseInt(this.getAttribute("data-row"),10);
-      if(!rowSelected(r)){ sel={r1:r,c1:0,r2:r,c2:COLS.length-1}; render(); }
+      // 다중 선택된 행 위에서 우클릭이면 선택 유지, 아니면 이 행 하나만 선택
+      if(!rowSelected(r)){ extraRows={}; sel={r1:r,c1:0,r2:r,c2:COLS.length-1}; render(); }
       showRowMenu(e.clientX, e.clientY, r, vr);
     };
   }
