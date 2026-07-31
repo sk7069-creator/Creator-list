@@ -113,9 +113,17 @@ function render(){
   h.push('<div class="xl-status"><span>'+(sel?selDesc():'셀·행·열을 선택하세요 (우클릭 = 메뉴)')+'</span>');
   h.push('<span class="xl-hint">드래그 선택 → 우클릭/Ctrl+C 복사 · 행 삭제 Ctrl+- · 아래로 드래그 시 자동 스크롤</span></div>');
   h.push('</div>');
+  // 다시 그리기 전에 스크롤 위치 기억
+  var _prevScroll=null;
+  var _oldScroller=root.querySelector(".xl-scroll");
+  if(_oldScroller){ _prevScroll={top:_oldScroller.scrollTop, left:_oldScroller.scrollLeft}; }
+
   root.innerHTML=h.join("");
   bind(vr);
   if(searchQ) applyLiveFilter(searchQ);   // 다시 그린 뒤 현재 검색어로 행 숨김 유지
+
+  // 스크롤 위치 복원
+  if(_prevScroll){ var _newScroller=root.querySelector(".xl-scroll"); if(_newScroller){ _newScroller.scrollTop=_prevScroll.top; _newScroller.scrollLeft=_prevScroll.left; } }
 }
 
 // 입력창을 건드리지 않고 표의 행만 보이거나 숨김 (한글 IME 조합 보호)
@@ -311,10 +319,10 @@ function bind(vr){
       var r=parseInt(this.getAttribute("data-row"),10);
       if(e.ctrlKey||e.metaKey){
         // Ctrl+클릭: 이 행을 다중 선택에 토글 추가
-        // 먼저 현재 sel(단일/범위)을 extraRows로 흡수
+        // 먼저 현재 sel(단일/범위, 헤더 -1 포함)을 extraRows로 흡수
         if(sel && Math.min(sel.c1,sel.c2)===0 && Math.max(sel.c1,sel.c2)===COLS.length-1){
           var sr1=Math.min(sel.r1,sel.r2), sr2=Math.max(sel.r1,sel.r2);
-          for(var sr=Math.max(0,sr1); sr<=sr2; sr++) extraRows[sr]=true;
+          for(var sr=sr1; sr<=sr2; sr++) extraRows[sr]=true;   // -1(헤더)도 그대로 흡수
         }
         if(extraRows[r]) delete extraRows[r]; else extraRows[r]=true;
         sel=null; dragging=null;

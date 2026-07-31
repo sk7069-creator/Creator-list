@@ -29,7 +29,7 @@ function currentNote(){ return activeTab==="us" ? OVERSEAS_NOTE : DOMESTIC_NOTE;
 // 국내 데이터 → 해외 데이터 변환 (병합정보 유지)
 function toOverseasData(arr){
   return (arr||[]).map(function(r){
-    var o={id:r.id, n:r.n, s1:toUSD(r.s1), s2:toUSD(r.s2), s3:toUSD(r.s3), fd:toUSD(r.fd), lf:toUSD(r.lf), ig:r.ig, tt:r.tt, yt:r.yt};
+    var o={id:r.id, n:r.n, s1:toUSD(r.s1), s2:toUSD(r.s2), s3:toUSD(r.s3), fd:toUSD(r.fd), lf:toUSD(r.lf), ig:r.ig, tt:r.tt, yt:r.yt, grade:r.grade};
     if(r._m) o._m=JSON.parse(JSON.stringify(r._m));
     return o;
   });
