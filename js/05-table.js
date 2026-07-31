@@ -182,7 +182,22 @@ function bind(vr){
   byId("xl-undo").onclick=undo;
   byId("xl-redo").onclick=redo;
   var corner=byId("xl-selall"); if(corner){ corner.onclick=function(){ extraRows={}; sel={r1:-1,c1:0,r2:vr.length-1,c2:COLS.length-1}; render(); }; }
-  var corner2=byId("xl-selall2"); if(corner2){ corner2.onclick=function(){ extraRows={}; sel={r1:-1,c1:0,r2:-1,c2:COLS.length-1}; render(); }; }
+  var corner2=byId("xl-selall2"); if(corner2){
+    corner2.onmousedown=function(e){
+      var hasMulti=Object.keys(extraRows).length>0;
+      if(hasMulti || e.ctrlKey || e.metaKey){
+        // 다중 선택 중이거나 Ctrl+클릭: 현재 sel 범위를 흡수하고 헤더 행 추가 (기존 유지)
+        if(sel && Math.min(sel.c1,sel.c2)===0 && Math.max(sel.c1,sel.c2)===COLS.length-1){
+          var sr1=Math.min(sel.r1,sel.r2), sr2=Math.max(sel.r1,sel.r2);
+          for(var sr=sr1; sr<=sr2; sr++) extraRows[sr]=true;
+        }
+        if(extraRows[-1] && (e.ctrlKey||e.metaKey)) delete extraRows[-1]; else extraRows[-1]=true;
+        sel=null; render(); e.preventDefault(); return;
+      }
+      // 아무 선택 없을 때 일반 클릭: 헤더 행만 선택
+      extraRows={}; sel={r1:-1,c1:0,r2:-1,c2:COLS.length-1}; render(); e.preventDefault();
+    };
+  }
 
   // 열 라벨(알파벳): 클릭=열선택, 우클릭=열메뉴
   var alphas=root.querySelectorAll(".xl-alpha");
