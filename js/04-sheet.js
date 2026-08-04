@@ -43,6 +43,18 @@ function isNoteRow(name){
   return false;
 }
 
+// 시트에서 새로 받은 데이터에, 기존 임시 열 값을 이름 기준으로 다시 붙임
+function preserveTempCols(newData){
+  var tmpKeys=(typeof COLS!=="undefined") ? COLS.filter(function(c){return c.tmp;}).map(function(c){return c.key;}) : [];
+  if(!tmpKeys.length || !data || !data.length) return newData;
+  var byName={}; data.forEach(function(r){ if(r.n) byName[r.n]=r; });
+  newData.forEach(function(nr){
+    var old=byName[nr.n];
+    tmpKeys.forEach(function(k){ nr[k] = old ? (old[k]||"") : ""; });
+  });
+  return newData;
+}
+
 function csvToData(text){
   var rows=parseCSV(text);
   if(!rows.length) return null;
@@ -174,7 +186,7 @@ function fetchSheet(isFirst, isManual){
     }
     var snap=loadSnap();
     if(!snap){
-      data=newData.map(function(x){ return assign({},x); });
+      data=preserveTempCols(newData).map(function(x){ return assign({},x); });
       saveData(); saveSnap(newData); if(newData._stamp) saveStamp(newData._stamp); render();
       notify("구글 시트에서 "+newData.length+"명 불러왔습니다.");
       return;
@@ -229,7 +241,7 @@ function resetToSheet(){
     var newData=csvToData(text);
     if(!newData||!newData.length){ notify("시트를 읽지 못했습니다. 잠시 후 다시 시도하세요."); return; }
     snapshot(); // Ctrl+Z로 되돌릴 수 있게
-    data=newData.map(function(x){ return assign({},x); });
+    data=preserveTempCols(newData).map(function(x){ return assign({},x); });
     saveData(); saveSnap(newData); if(newData._stamp) saveStamp(newData._stamp);
     pendingSheet=null;
     sel=null; searchQ=""; sortState={key:null,dir:0};

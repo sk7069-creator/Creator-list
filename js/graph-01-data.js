@@ -109,6 +109,17 @@ function parseCurrent(text) {
   return out;
 }
 
+// 크리에이터의 대표 숏폼 채널 = 값이 있는 가장 오른쪽 채널 (3→2→1 순)
+// 이센찌(600/750/800)→3채널, 좌두(1채널+2~3병합)→3채널, 1채널만 있으면 1채널
+function mainShortField(name) {
+  var c = null;
+  for (var i = 0; i < curData.length; i++) { if (curData[i].n === name) { c = curData[i]; break; } }
+  if (!c) return "숏폼 1채널";
+  if (c.s3 != null && c.s3 !== "" && c.s3 !== 0) return "3채널";
+  if (c.s2 != null && c.s2 !== "" && c.s2 !== 0) return "2채널";
+  return "숏폼 1채널";
+}
+
 // 특정 시점의 단가 복원 (현재값에서 이후 변경을 역으로 되돌림)
 function priceAt(name, field, when) {
   var key = FIELD_KEY[field];

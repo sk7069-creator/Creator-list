@@ -281,6 +281,7 @@ function gRender() {
     h.push('<div class="g-picksum">');
     h.push('<div class="g-picksum-top">');
     h.push('<span class="g-picksum-name">' + gEsc(pk) + '</span>');
+    h.push('<span class="g-picksum-field">(' + gEsc(gState.fields[0] || "숏폼 1채널") + ' 기준)</span>');
     h.push('<span class="g-card-badge ' + badge[1] + '">' + badge[0] + '</span>');
     if (pkData) {
       var links = [];
@@ -569,7 +570,11 @@ function gBind() {
       disabled: comboDis,
       onPick: function (nm) {
         if (!nm) return;
-        if (gState.mode === "each") gState.picked = [nm];
+        if (gState.mode === "each") {
+          gState.picked = [nm];
+          // 대표 숏폼 채널(값 있는 가장 오른쪽)을 기본 항목으로 자동 설정
+          gState.fields = [mainShortField(nm)];
+        }
         else if (gState.picked.indexOf(nm) < 0 && gState.picked.length < 8) gState.picked.push(nm);
         gRender();
       }

@@ -248,7 +248,7 @@ function bind(vr){
     function commitHeader(){
       var ci=parseInt(hin.getAttribute("data-col"),10);
       var v=hin.value.trim();
-      if(v && COLS[ci] && v!==COLS[ci].label){ COLS[ci].label=v; saveColLabels(); }
+      if(v && COLS[ci] && v!==COLS[ci].label){ COLS[ci].label=v; if(COLS[ci].tmp) saveTempCols(); else saveColLabels(); }
       editingHeader=null; render();
     }
     hin.onblur=commitHeader;
@@ -489,9 +489,12 @@ function showCellMenu(x,y,vr){
   if(canMerge()||cellHasMerge(ri,vr)) items.push({sep:true});
   items.push({label:"위에 행 삽입", fn:function(){ insertRow(vr,"above"); }});
   items.push({label:"아래에 행 삽입", fn:function(){ insertRow(vr,"below"); }});
-  items.push({label:"행 삭제", danger:true, fn:function(){ delSelectedRows(vr); }});
   items.push({sep:true});
-  items.push({label:"선택 영역 지우기(값)", danger:true, fn:function(){ clearSelection(vr); }});
+  var cci=sel?Math.min(sel.c1,sel.c2):0;
+  items.push({label:"◀ 왼쪽에 임시 열 삽입", fn:function(){ insertCol(cci,"left"); }});
+  items.push({label:"오른쪽에 임시 열 삽입 ▶", fn:function(){ insertCol(cci,"right"); }});
+  items.push({sep:true});
+  items.push({label:"행 삭제", danger:true, fn:function(){ delSelectedRows(vr); }});
   showMenu(x,y,items);
 }
 function showRowMenu(x,y,r,vr){
@@ -506,18 +509,31 @@ function showRowMenu(x,y,r,vr){
   ]);
 }
 function showColMenu(x,y,ci,vr){
-  showMenu(x,y,[
+  var isTmp = COLS[ci] && COLS[ci].tmp;
+  var items=[
     {label:"이 열 복사", fn:function(){ copySelection(vr); }},
+    {sep:true},
+    {label:"◀ 왼쪽에 임시 열 삽입", fn:function(){ insertCol(ci,"left"); }},
+    {label:"오른쪽에 임시 열 삽입 ▶", fn:function(){ insertCol(ci,"right"); }},
     {sep:true},
     {label:"오름차순 정렬 ▲", fn:function(){ sortState={key:COLS[ci].key,dir:1}; sel=null; render(); }},
     {label:"내림차순 정렬 ▼", fn:function(){ sortState={key:COLS[ci].key,dir:-1}; sel=null; render(); }},
     {label:"정렬 해제", fn:function(){ sortState={key:null,dir:0}; render(); }},
-    {sep:true},
-    {label:"선택 영역 지우기(값)", danger:true, fn:function(){ clearSelection(vr); }},
-    {sep:true},
-    {label:"이 열 지우기 (견적용·임시)", fn:function(){ hideColumns(ci); }},
-    {label:"이 열 전체 비우기 (모든 행)", danger:true, fn:function(){ clearColumn(ci,vr); }}
-  ]);
+    {sep:true}
+  ];
+  if(isTmp) items.push({label:"임시 열 제거", danger:true, fn:function(){ removeTempCol(ci); }});
+  else items.push({label:"이 열 지우기 (견적용·임시)", fn:function(){ hideColumns(ci); }});
+  showMenu(x,y,items);
+}
+// 임시 열 제거
+function removeTempCol(ci){
+  if(!COLS[ci]||!COLS[ci].tmp){ notify("임시 열만 제거할 수 있습니다"); return; }
+  snapshot();
+  var key=COLS[ci].key;
+  COLS.splice(ci,1);
+  data.forEach(function(r){ delete r[key]; });
+  saveData(); saveTempCols(); sel=null; render();
+  notify("임시 열 제거됨 (Ctrl+Z로 복구)");
 }
 // 열 지우기 (원본 유지, 화면·복사에서만 제외)
 // hideColumns(ci)         : 클릭한 열, 또는 열 선택 범위
@@ -549,6 +565,42 @@ function insertRow(vr, where){
   snapshot();
   var nr={id:"c"+Date.now(), n:"신규", s1:"",s2:"",s3:"",fd:"",lf:"",ig:"",tt:"",yt:""};
   data.splice(at,0,nr); saveData(); sel=null; render(); notify("행 삽입됨");
+}
+// 임시 빈 열 삽입 (화면·이 브라우저에만, 시트·복사 원본엔 영향 없음)
+function insertCol(ci, where){
+  snapshot();
+  var at = where==="right" ? ci+1 : ci;
+  var key = "tmp_"+Date.now();
+  var newCol = { key:key, label:"메모", w:100, type:"text", center:false, bold:false, tmp:true };
+  COLS.splice(at, 0, newCol);
+  // 각 행에 빈 값 추가
+  data.forEach(function(r){ r[key]=""; });
+  saveData(); sel=null;
+  saveTempCols();
+  render();
+  notify("임시 열 삽입됨 (이 화면에서만 · 헤더 더블클릭으로 이름 변경 · Ctrl+Z로 제거)");
+}
+// 임시 열 목록을 localStorage에 저장/복원 (새로고침해도 유지, 원하면 지우기)
+function saveTempCols(){
+  try{
+    var tmps=COLS.filter(function(c){return c.tmp;}).map(function(c){
+      return {key:c.key, label:c.label, at:COLS.indexOf(c)};
+    });
+    localStorage.setItem(LS_W+"_tmpcols", JSON.stringify(tmps));
+  }catch(e){}
+}
+function loadTempCols(){
+  try{
+    var s=localStorage.getItem(LS_W+"_tmpcols"); if(!s) return;
+    var tmps=JSON.parse(s); if(!Array.isArray(tmps)) return;
+    tmps.sort(function(a,b){return a.at-b.at;});
+    tmps.forEach(function(t){
+      if(COLS.some(function(c){return c.key===t.key;})) return;
+      var col={key:t.key, label:t.label||"메모", w:100, type:"text", center:false, bold:false, tmp:true};
+      var at=Math.min(t.at, COLS.length);
+      COLS.splice(at,0,col);
+    });
+  }catch(e){}
 }
 function delSelectedRows(vr){
   if(!sel){ notify("삭제할 행을 선택하세요"); return; }

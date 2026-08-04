@@ -35,8 +35,27 @@ function saveColLabels(){ try{ var o={}; COLS.forEach(function(c){o[c.key]=c.lab
 function assign(t){ for(var i=1;i<arguments.length;i++){var s=arguments[i]; for(var k in s) if(Object.prototype.hasOwnProperty.call(s,k)) t[k]=s[k];} return t; }
 function loadHiddenCols(){ try{ var s=localStorage.getItem(LS_W+"_hidden"); if(s){ hiddenCols=JSON.parse(s)||{}; } }catch(e){ hiddenCols={}; } }
 function saveHiddenCols(){ try{ localStorage.setItem(LS_W+"_hidden", JSON.stringify(hiddenCols)); }catch(e){} }
-function snapState(){ return JSON.stringify({d:data, h:hiddenCols}); }
-function restoreState(s){ var o=JSON.parse(s); if(o&&o.d){ data=o.d; hiddenCols=o.h||{}; } else { data=JSON.parse(s); } saveData(); saveHiddenCols(); }
+function snapState(){
+  var tmps=(typeof COLS!=="undefined") ? COLS.filter(function(c){return c.tmp;}).map(function(c){return {key:c.key,label:c.label,at:COLS.indexOf(c)};}) : [];
+  return JSON.stringify({d:data, h:hiddenCols, t:tmps});
+}
+function restoreState(s){
+  var o=JSON.parse(s);
+  if(o&&o.d){
+    data=o.d; hiddenCols=o.h||{};
+    // 임시 열 복원: 현재 COLS의 tmp 열 제거 후, 스냅샷의 tmp 열 재삽입
+    if(typeof COLS!=="undefined"){
+      for(var i=COLS.length-1;i>=0;i--){ if(COLS[i].tmp) COLS.splice(i,1); }
+      var tmps=(o.t||[]).slice().sort(function(a,b){return a.at-b.at;});
+      tmps.forEach(function(t){
+        var col={key:t.key,label:t.label||"메모",w:100,type:"text",center:false,bold:false,tmp:true};
+        COLS.splice(Math.min(t.at,COLS.length),0,col);
+      });
+      if(typeof saveTempCols==="function") saveTempCols();
+    }
+  } else { data=JSON.parse(s); }
+  saveData(); saveHiddenCols();
+}
 function snapshot(){ hist.push(snapState()); if(hist.length>80) hist.shift(); future=[]; }
 function undo(){ if(!hist.length){notify("되돌릴 작업 없음");return;} future.push(snapState()); restoreState(hist.pop()); render(); notify("실행취소"); }
 function redo(){ if(!future.length){notify("다시 실행할 작업 없음");return;} hist.push(snapState()); restoreState(future.pop()); render(); notify("다시 실행"); }

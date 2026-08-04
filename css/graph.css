@@ -214,3 +214,4 @@ select.g-input{cursor:pointer}
 .g-picksum-diff.up{color:#c0392b}
 .g-picksum-diff.down{color:#1a7a3a}
 .g-picksum-sub{font-size:11px;color:#aaa;margin-top:4px}
+.g-picksum-field{font-size:11px;color:#888;font-weight:500;margin-left:2px}
