@@ -278,11 +278,12 @@ function bind(vr){
           if(extraRows[-1]) delete extraRows[-1]; else extraRows[-1]=true;
           sel=null; dragging=null; render(); e.preventDefault(); return;
         }
-        // 일반 클릭: 헤더 행만 선택
-        extraRows={}; anchor={r:-1,c:0}; sel={r1:-1,c1:0,r2:-1,c2:COLS.length-1}; dragging=null;
+        // 일반 클릭: 헤더 셀에서 시작 → 드래그하면 셀 범위, 안 끌면 헤더 행 선택
+        extraRows={}; anchor={r:-1,c:c}; sel={r1:-1,c1:c,r2:-1,c2:c}; dragging="cell"; headerClickCol=c;
         updateSelDom(); e.preventDefault(); return;
       }
       if(Object.keys(extraRows).length){ extraRows={}; }   // 데이터 셀 클릭 시 다중 선택 해제
+      headerClickCol=null;
       anchor={r:r,c:c}; sel={r1:r,c1:c,r2:r,c2:c}; dragging="cell";
       updateSelDom(); e.preventDefault();
     };
@@ -367,7 +368,14 @@ function updateSelDom(){
   var sb=root.querySelector(".xl-status span"); if(sb&&sel) sb.textContent=selDesc();
 }
 
-document.addEventListener("mouseup",function(){ dragging=false; stopAutoScroll(); });
+document.addEventListener("mouseup",function(){
+  // 헤더 셀에서 눌렀다가 드래그 없이 놓으면 → 헤더 행 전체 선택
+  if(headerClickCol!=null && sel && sel.r1===-1 && sel.r2===-1 && sel.c1===sel.c2){
+    sel={r1:-1,c1:0,r2:-1,c2:COLS.length-1}; updateSelDom();
+  }
+  headerClickCol=null;
+  dragging=false; stopAutoScroll();
+});
 
 // ===== 드래그 중 자동 스크롤 =====
 var autoScrollTimer=null;
