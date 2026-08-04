@@ -538,8 +538,19 @@ function removeTempCol(ci){
   if(!COLS[ci]||!COLS[ci].tmp){ notify("임시 열만 제거할 수 있습니다"); return; }
   snapshot();
   var key=COLS[ci].key;
+  var at=ci;
   COLS.splice(ci,1);
-  data.forEach(function(r){ delete r[key]; });
+  data.forEach(function(r){
+    delete r[key];
+    if(r._m && r._m.length){
+      r._m=r._m.map(function(m){
+        var c1=m.c1, c2=m.c2;
+        if(c1>at) c1--;              // 제거 지점 오른쪽 → 당김
+        if(c2>=at) c2--;             // 병합 끝이 제거 지점 이상 → 당김
+        return {c1:c1, c2:c2};
+      }).filter(function(m){ return m.c2>m.c1; });   // 한 칸짜리(=병합 아님) 제거
+    }
+  });
   saveData(); saveTempCols(); sel=null; render();
   notify("임시 열 제거됨 (Ctrl+Z로 복구)");
 }
@@ -581,8 +592,17 @@ function insertCol(ci, where){
   var key = "tmp_"+Date.now();
   var newCol = { key:key, label:"메모", w:100, type:"text", center:false, bold:false, tmp:true };
   COLS.splice(at, 0, newCol);
-  // 각 행에 빈 값 추가
-  data.forEach(function(r){ r[key]=""; });
+  // 각 행: 빈 값 추가 + 병합(_m) 인덱스를 삽입 위치 기준으로 이동
+  data.forEach(function(r){
+    r[key]="";
+    if(r._m && r._m.length){
+      r._m.forEach(function(m){
+        if(m.c1>=at){ m.c1++; m.c2++; }          // 삽입 지점 오른쪽 병합 → 통째로 한 칸 밀기
+        else if(m.c2>=at){ m.c2++; }             // 삽입이 병합 한가운데 → 병합 넓힘(엑셀 방식)
+        // m.c2 < at 이면 삽입 지점 왼쪽 병합 → 영향 없음
+      });
+    }
+  });
   saveData(); sel=null;
   saveTempCols();
   render();
