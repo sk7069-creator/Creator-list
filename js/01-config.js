@@ -32,6 +32,7 @@ var extraRows={};    // Ctrl+클릭으로 추가 선택한 행들 {ri:true} (비
 var anchor=null;
 var dragging=false;  // false | "cell" | "row" | "col"
 var headerClickCol=null;  // 헤더 셀에서 드래그 시작 시 열 (안 끌면 헤더 행 선택으로 전환)
+var addDragToggle=true;   // Ctrl+드래그 시 추가(true)/해제(false) 방향
 var editingCell=null;
 var editingHeader=null;   // 편집 중인 헤더 열 인덱스
 var hiddenCols={};        // 숨긴 열 {key:true} — 견적용 임시 숨김 (원본 데이터는 유지)

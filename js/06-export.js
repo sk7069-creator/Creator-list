@@ -340,14 +340,15 @@ document.addEventListener("keydown",function(e){
   else if(mod && (e.key==="a"||e.key==="A")){ var v4=viewRows(); sel={r1:-1,c1:0,r2:v4.length-1,c2:COLS.length-1}; render(); e.preventDefault(); }
   else if(e.key==="Delete"||e.key==="Backspace"){ var v5=viewRows(); if(sel){ clearSelection(v5); e.preventDefault(); } }
   else if(mod && (e.key==="-"||e.key==="Subtract")){
-    // Ctrl+- : 열이 선택돼 있으면 열 지우기, 아니면 행 삭제
-    if(sel){
-      var colSel = Math.min(sel.r1,sel.r2)<=-1;   // 헤더행부터 선택 = 열 선택
+    // Ctrl+- : 열 선택이면 열 지우기, 행/다중 선택이면 행 삭제
+    var hasMulti = Object.keys(extraRows).some(function(k){ return Number(k)>=0; });
+    if(sel || hasMulti){
+      var colSel = sel && Math.min(sel.r1,sel.r2)<=-1 && !hasMulti;   // 헤더행부터 선택 = 열 선택
       if(colSel){
         var cc1=Math.min(sel.c1,sel.c2), cc2=Math.max(sel.c1,sel.c2);
-        hideColumns(cc1, cc2);   // 선택된 열 범위 지우기
+        hideColumns(cc1, cc2);
       }else{
-        var v7=viewRows(); delSelectedRows(v7);
+        var v7=viewRowsRaw(false); delSelectedRows(v7);
       }
       e.preventDefault();
     }

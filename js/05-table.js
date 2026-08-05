@@ -319,14 +319,14 @@ function bind(vr){
       if(e.button===2) return;
       var r=parseInt(this.getAttribute("data-row"),10);
       if(e.ctrlKey||e.metaKey){
-        // Ctrl+클릭: 이 행을 다중 선택에 토글 추가
-        // 먼저 현재 sel(단일/범위, 헤더 -1 포함)을 extraRows로 흡수
+        // Ctrl+누름: 기존 sel(단일/범위, 헤더 -1 포함)을 extraRows로 흡수
         if(sel && Math.min(sel.c1,sel.c2)===0 && Math.max(sel.c1,sel.c2)===COLS.length-1){
           var sr1=Math.min(sel.r1,sel.r2), sr2=Math.max(sel.r1,sel.r2);
-          for(var sr=sr1; sr<=sr2; sr++) extraRows[sr]=true;   // -1(헤더)도 그대로 흡수
+          for(var sr=sr1; sr<=sr2; sr++) extraRows[sr]=true;   // -1(헤더)도 흡수
         }
+        // 클릭한 행 토글, 그리고 Ctrl+드래그 대비 "추가 모드"로 진입
         if(extraRows[r]) delete extraRows[r]; else extraRows[r]=true;
-        sel=null; dragging=null;
+        sel=null; dragging="row-add"; anchor={r:r,c:0}; addDragToggle=!!extraRows[r];
         render(); e.preventDefault(); return;
       }
       // 일반 클릭: 다중 선택 초기화하고 단일 행
@@ -335,9 +335,14 @@ function bind(vr){
       updateSelDom(); e.preventDefault();
     };
     rns[j].onmouseenter=function(e){
-      if(dragging!=="row"||!anchor) return;
       var r=parseInt(this.getAttribute("data-row"),10);
-      sel={r1:anchor.r,c1:0,r2:r,c2:COLS.length-1}; updateSelDom();
+      if(dragging==="row"){ sel={r1:anchor.r,c1:0,r2:r,c2:COLS.length-1}; updateSelDom(); return; }
+      if(dragging==="row-add" && anchor){
+        // Ctrl+드래그: anchor부터 현재 행까지 extraRows에 추가(토글 방향 따라)
+        var a=Math.min(anchor.r, r), b=Math.max(anchor.r, r);
+        for(var rr=a; rr<=b; rr++){ if(addDragToggle) extraRows[rr]=true; else delete extraRows[rr]; }
+        render();
+      }
     };
     rns[j].oncontextmenu=function(e){
       e.preventDefault();
@@ -631,14 +636,21 @@ function loadTempCols(){
   }catch(e){}
 }
 function delSelectedRows(vr){
-  if(!sel){ notify("삭제할 행을 선택하세요"); return; }
-  var r1=Math.max(0,Math.min(sel.r1,sel.r2)), r2=Math.max(sel.r1,sel.r2);
-  var dis=[], names=[]; for(var r=r1;r<=r2;r++){ if(vr[r]){ dis.push(vr[r].di); names.push(vr[r].row.n||"(이름없음)"); } }
+  // 삭제할 행 인덱스 모으기: sel 범위 + extraRows(다중 선택)
+  var rowSet={};
+  if(sel){
+    var a=Math.max(0,Math.min(sel.r1,sel.r2)), b=Math.max(sel.r1,sel.r2);
+    for(var r=a;r<=b;r++) rowSet[r]=true;
+  }
+  Object.keys(extraRows).forEach(function(k){ var n=Number(k); if(n>=0) rowSet[n]=true; });   // 헤더(-1) 제외
+  var ridx=Object.keys(rowSet).map(Number);
+  if(!ridx.length){ notify("삭제할 행을 선택하세요"); return; }
+  var dis=[]; ridx.forEach(function(ri){ if(vr[ri]) dis.push(vr[ri].di); });
   if(!dis.length){ notify("삭제할 데이터 행이 없습니다"); return; }
   snapshot();
   var set={}; dis.forEach(function(d){set[d]=1;});
   data=data.filter(function(_,i){ return !set[i]; });
-  saveData(); sel=null; render(); notify(dis.length+"개 행 삭제됨 (Ctrl+Z로 복구)");
+  saveData(); sel=null; extraRows={}; render(); notify(dis.length+"개 행 삭제됨 (Ctrl+Z로 복구)");
 }
 function clearSelection(vr){
   if(!sel) return;
