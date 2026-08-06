@@ -211,6 +211,7 @@ function downloadXLSX_styled(src, snapLabel){
     xr.eachCell({ includeEmpty:true }, function(cell, colNumber){
       var col = COLS[colNumber-1];
       cell.font = FONT;
+      cell.alignment = { horizontal:"center", vertical:"middle" };   // 상하좌우 가운데
       var v = cell.value;
       // 값이 있는 셀에만 테두리 (요청 4)
       if(v!==null && v!==undefined && String(v)!==""){
@@ -220,6 +221,7 @@ function downloadXLSX_styled(src, snapLabel){
       if(col && urlKeys[col.key] && typeof v==="string" && /^https?:\/\//.test(v)){
         cell.value = { text:v, hyperlink:v };
         cell.font = { name:"맑은 고딕", size:10, color:{argb:"FF0563C1"}, underline:true };
+        cell.alignment = { horizontal:"center", vertical:"middle" };
         cell.border = allBorder;
       }
     });
@@ -239,7 +241,29 @@ function downloadXLSX_styled(src, snapLabel){
   try{ ws.mergeCells(noteStart, 1, noteStart+6, nCols); }catch(e){}   // 7행 × A~I
 
   // 열 너비 (px → 엑셀 단위 대략 변환)
-  COLS.forEach(function(c, i){ ws.getColumn(i+1).width = Math.max(8, Math.round((c.w||100)/7)); });
+  // 열 너비 자동 맞춤: 헤더+데이터 중 가장 긴 내용 기준 (한글은 폭 2로 계산)
+  function textWidth(s){
+    s = String(s==null?"":s);
+    var w=0;
+    for(var i=0;i<s.length;i++){
+      var code=s.charCodeAt(i);
+      w += (code>=0x1100 && code<=0xFFDC) ? 2 : 1;   // 한글·전각은 2배
+    }
+    return w;
+  }
+  COLS.forEach(function(c, i){
+    var maxW = textWidth(colLabel(c));
+    src.forEach(function(row){
+      var v = c.type==="num" ? (num(row[c.key])==="" ? "" : num(row[c.key]).toLocaleString()) : row[c.key];
+      var w = textWidth(v);
+      if(w>maxW) maxW=w;
+    });
+    var isUrl = (c.key==="ig"||c.key==="tt"||c.key==="yt");
+    var width = maxW + 2;                       // 여백
+    if(isUrl) width = Math.min(width, 32);      // URL은 과하게 넓어지지 않게 상한
+    else width = Math.min(width, 30);
+    ws.getColumn(i+1).width = Math.max(8, width);
+  });
 
   // 파일명
   var base = activeTab==="us" ? "AG-ENT_Creator_List_USD_" : "AG-ENT_크리에이터_단가표_";
