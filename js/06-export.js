@@ -146,14 +146,14 @@ function downloadXLSX(snapData, snapLabel){
     ? (activeTab === "us" ? toOverseasData(snapData) : snapData)
     : currentData();
 
-  // SheetJS 없으면 옛 방식으로 폴백
+  // exceljs 있으면 서식 완비 버전, 없으면 SheetJS, 그것도 없으면 legacy
+  if(typeof ExcelJS!=="undefined" && ExcelJS.Workbook){ return downloadXLSX_styled(src, snapLabel); }
   if(typeof XLSX==="undefined" || !XLSX.utils){ return downloadXLSX_legacy(snapData, snapLabel); }
 
-  // ── 시트를 2차원 배열(AOA)로 구성 ──
+  // ── (구) SheetJS 경로: 서식 제한적 ──
   var aoa=[];
-  aoa.push(COLS.map(function(c){ return colLabel(c); }));   // 헤더 행
-
-  var merges=[];   // 병합 정보 {s:{r,c}, e:{r,c}}
+  aoa.push(COLS.map(function(c){ return colLabel(c); }));
+  var merges=[];
   src.forEach(function(row, ri){
     var rowArr=[];
     for(var ci=0; ci<COLS.length; ci++){
@@ -162,40 +162,100 @@ function downloadXLSX(snapData, snapLabel){
       rowArr.push(val);
     }
     aoa.push(rowArr);
-    // 병합: row._m = [{c1,c2}] → 엑셀 행 인덱스는 ri+1 (헤더가 0행)
     var ms = row._m || [];
-    ms.forEach(function(m){
-      if(m.c2>m.c1){ merges.push({ s:{r:ri+1, c:m.c1}, e:{r:ri+1, c:m.c2} }); }
-    });
+    ms.forEach(function(m){ if(m.c2>m.c1){ merges.push({ s:{r:ri+1, c:m.c1}, e:{r:ri+1, c:m.c2} }); } });
   });
-
-  // 안내문 (한 줄 비우고 A열에 전체 병합)
-  var noteRowIdx = aoa.length + 1;   // 빈 줄 다음
-  aoa.push([]);                       // 빈 줄
+  var noteRowIdx = aoa.length + 1;
+  aoa.push([]);
   var noteArr=[currentNote()]; for(var k=1;k<COLS.length;k++) noteArr.push("");
   aoa.push(noteArr);
   merges.push({ s:{r:noteRowIdx, c:0}, e:{r:noteRowIdx, c:COLS.length-1} });
-
   var ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!merges'] = merges;
   ws['!cols'] = COLS.map(function(c){ return { wpx: c.w }; });
-
-  // 헤더 셀 배경색·굵게 (SheetJS 기본 빌드는 스타일 제한적이지만 병합·값은 확실)
-  var range = XLSX.utils.decode_range(ws['!ref']);
-  for(var cc=range.s.c; cc<=range.e.c; cc++){
-    var addr = XLSX.utils.encode_cell({r:0, c:cc});
-    if(ws[addr]) ws[addr].s = { fill:{fgColor:{rgb:"FCE5CD"}}, font:{bold:true}, alignment:{horizontal:"center"} };
-  }
-
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, activeTab==="us"?"Creator List":"크리에이터 단가");
+  var base = activeTab==="us" ? "AG-ENT_Creator_List_USD_" : "AG-ENT_크리에이터_단가표_";
+  var stampPart = snapLabel ? (snapLabel.replace(/-/g,"") + "_기준") : nowStr().replace(/[: ]/g,"").slice(0,12);
+  XLSX.writeFile(wb, base + stampPart + ".xlsx");
+  notify(snapLabel ? ("엑셀 다운로드 · "+snapLabel+" 23:59 기준 ("+src.length+"명)") : ("엑셀 파일 다운로드 ("+src.length+"명)"));
+}
 
+// ── exceljs: 배경색·테두리·폰트·병합·하이퍼링크 서식 완비 ──
+function downloadXLSX_styled(src, snapLabel){
+  var wb = new ExcelJS.Workbook();
+  var ws = wb.addWorksheet(activeTab==="us"?"Creator List":"크리에이터 단가");
+  var nCols = COLS.length;
+  var thin = { style:"thin", color:{argb:"FF000000"} };
+  var allBorder = { top:thin, left:thin, bottom:thin, right:thin };
+  var FONT = { name:"맑은 고딕", size:10 };
+
+  // 1행: 헤더 (배경 #FFCC99, 검정 글자, 테두리)
+  var headRow = ws.addRow(COLS.map(function(c){ return colLabel(c); }));
+  headRow.eachCell(function(cell){
+    cell.font = { name:"맑은 고딕", size:10, bold:true, color:{argb:"FF000000"} };
+    cell.fill = { type:"pattern", pattern:"solid", fgColor:{argb:"FFFFCC99"} };
+    cell.alignment = { horizontal:"center", vertical:"middle" };
+    cell.border = allBorder;
+  });
+
+  // 데이터 행
+  var urlKeys = { ig:1, tt:1, yt:1 };
+  var merges = [];
+  src.forEach(function(row, ri){
+    var vals = COLS.map(function(c){
+      return c.type==="num" ? (num(row[c.key])==="" ? "" : num(row[c.key])) : String(row[c.key]==null?"":row[c.key]);
+    });
+    var xr = ws.addRow(vals);
+    var excelRow = ri + 2;   // 1-based, 헤더가 1행
+    xr.eachCell({ includeEmpty:true }, function(cell, colNumber){
+      var col = COLS[colNumber-1];
+      cell.font = FONT;
+      var v = cell.value;
+      // 값이 있는 셀에만 테두리 (요청 4)
+      if(v!==null && v!==undefined && String(v)!==""){
+        cell.border = allBorder;
+      }
+      // URL 하이퍼링크 자동 활성화 (요청 5)
+      if(col && urlKeys[col.key] && typeof v==="string" && /^https?:\/\//.test(v)){
+        cell.value = { text:v, hyperlink:v };
+        cell.font = { name:"맑은 고딕", size:10, color:{argb:"FF0563C1"}, underline:true };
+        cell.border = allBorder;
+      }
+    });
+    // 병합 정보 수집
+    (row._m||[]).forEach(function(m){ if(m.c2>m.c1){ merges.push([excelRow, m.c1+1, excelRow, m.c2+1]); } });
+  });
+
+  // 병합 적용
+  merges.forEach(function(m){ try{ ws.mergeCells(m[0], m[1], m[2], m[3]); }catch(e){} });
+
+  // 안내문: 데이터 다음, 7행 × A~I 병합 (요청 2)
+  var noteStart = src.length + 2 + 1;   // 헤더1 + 데이터N + 한 줄 띄우기
+  var note = currentNote() || "";
+  ws.getCell(noteStart, 1).value = note;
+  ws.getCell(noteStart, 1).font = FONT;
+  ws.getCell(noteStart, 1).alignment = { horizontal:"left", vertical:"top", wrapText:true };
+  try{ ws.mergeCells(noteStart, 1, noteStart+6, nCols); }catch(e){}   // 7행 × A~I
+
+  // 열 너비 (px → 엑셀 단위 대략 변환)
+  COLS.forEach(function(c, i){ ws.getColumn(i+1).width = Math.max(8, Math.round((c.w||100)/7)); });
+
+  // 파일명
   var base = activeTab==="us" ? "AG-ENT_Creator_List_USD_" : "AG-ENT_크리에이터_단가표_";
   var stampPart = snapLabel ? (snapLabel.replace(/-/g,"") + "_기준") : nowStr().replace(/[: ]/g,"").slice(0,12);
   var fname = base + stampPart + ".xlsx";
 
-  XLSX.writeFile(wb, fname);   // 진짜 xlsx로 저장
-  notify(snapLabel ? ("엑셀 다운로드 · "+snapLabel+" 23:59 기준 ("+src.length+"명)") : ("엑셀 파일 다운로드 ("+src.length+"명)"));
+  wb.xlsx.writeBuffer().then(function(buf){
+    var blob = new Blob([buf], { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+    notify(snapLabel ? ("엑셀 다운로드 · "+snapLabel+" 23:59 기준 ("+src.length+"명)") : ("엑셀 파일 다운로드 ("+src.length+"명)"));
+  }).catch(function(err){
+    notify("엑셀 생성 오류: "+(err.message||err)+" — 다시 시도해 주세요.");
+  });
 }
 
 // 옛 방식 (SheetJS 로드 실패 시 폴백) — .xls SpreadsheetML
