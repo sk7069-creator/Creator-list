@@ -1,11 +1,39 @@
 /* AG-ENT 크리에이터 단가표 — 복사 · 엑셀 다운로드 · 수정 기록 · 알림 */
+
+// ── Gmail 등 메일 클라이언트에서 표가 찌그러지지 않게 하는 공통 스타일 ──
+// Gmail은 <style> 태그와 일부 CSS를 제거하므로 모든 스타일을 각 셀에 인라인으로 넣는다.
+var MAIL_FONT = "Arial, 'Malgun Gothic', 맑은 고딕, sans-serif";
+function tdStyle(opt){
+  opt = opt || {};
+  var s = "border:1px solid " + BORDER + ";"
+        + "padding:5px 8px;"
+        + "font-family:" + MAIL_FONT + ";"
+        + "font-size:13px;"
+        + "line-height:1.4;"
+        + "mso-line-height-rule:exactly;"
+        + "vertical-align:middle;"
+        + "white-space:nowrap;";           // 셀 안에서 줄바꿈 방지 → 모양 유지
+  if(opt.head) s += "background:" + HEADER_BG + ";font-weight:bold;text-align:center;";
+  if(opt.center) s += "text-align:center;";
+  if(opt.bold) s += "font-weight:bold;";
+  if(opt.link) s += "color:" + LINK + ";";
+  if(opt.note) s += "background:#F9E4E4;font-size:12px;white-space:normal;text-align:left;";
+  return s;
+}
+// Gmail에서 표 구조가 유지되도록 속성을 직접 지정
+function mailTable(rowsHtml){
+  return '<table border="0" cellspacing="0" cellpadding="0" '
+       + 'style="border-collapse:collapse;border-spacing:0;font-family:' + MAIL_FONT + ';font-size:13px;">'
+       + '<tbody>' + rowsHtml + '</tbody></table>';
+}
+
 // 지정된 행 인덱스 목록을 행 단위로 복사 (헤더 포함, 붙여서)
 function copyRowsByIndex(vr, rowsIdx){
   if(!rowsIdx.length){ notify("복사할 행이 없습니다"); return; }
   var tsvLines=[], htmlRows=[], bufRows=[];
   var hcells=[]; for(var c=0;c<COLS.length;c++){ if(hiddenCols[COLS[c].key]) continue; hcells.push(colLabel(COLS[c])); }
   tsvLines.push(hcells.join("\t"));
-  htmlRows.push('<tr>'+hcells.map(function(t){return '<td style="background:'+HEADER_BG+';border:1px solid '+BORDER+';padding:4px 8px;font-family:Malgun Gothic,sans-serif;font-size:12px;text-align:center;">'+esc(t)+'</td>';}).join("")+'</tr>');
+  htmlRows.push('<tr>'+hcells.map(function(t){return '<td style="'+tdStyle({head:true})+'">'+esc(t)+'</td>';}).join("")+'</tr>');
   rowsIdx.forEach(function(ri){
     var o=vr[ri]; if(!o) return;
     var tcells=[], hc=[], cc=0;
@@ -18,15 +46,14 @@ function copyRowsByIndex(vr, rowsIdx){
           var raw=cellRaw(o.row,col), disp=cellText(o.row,col);
           tcells.push(raw.replace(/[\t\r\n]/g," "));
           for(var k=1;k<visSpan;k++) tcells.push("");
-          hc.push('<td colspan="'+visSpan+'" style="border:1px solid '+BORDER+';padding:4px 8px;text-align:center;font-family:Malgun Gothic,sans-serif;font-size:12px;">'+esc(disp)+'</td>');
+          hc.push('<td colspan="'+visSpan+'" style="'+tdStyle({center:true})+'">'+esc(disp)+'</td>');
         }
         cc=mg.c2+1;
       }else{
         if(hiddenCols[col.key]){ cc++; continue; }
         var raw2=cellRaw(o.row,col), disp2=cellText(o.row,col);
         tcells.push(raw2.replace(/[\t\r\n]/g," "));
-        var st='border:1px solid '+BORDER+';padding:4px 8px;font-family:Malgun Gothic,sans-serif;font-size:12px;'+(col.center?'text-align:center;':'')+(col.bold?'font-weight:700;':'')+(col.link?'color:'+LINK+';':'');
-        hc.push('<td style="'+st+'">'+esc(disp2)+'</td>');
+        hc.push('<td style="'+tdStyle({center:col.center,bold:col.bold,link:col.link})+'">'+esc(disp2)+'</td>');
         cc++;
       }
     }
@@ -37,7 +64,7 @@ function copyRowsByIndex(vr, rowsIdx){
     bufRows.push(copy);
   });
   clipboardBuf={rows:bufRows, c1:0, rowMode:true};
-  var html='<table style="border-collapse:collapse">'+htmlRows.join("")+'</table>';
+  var html=mailTable(htmlRows.join(""));
   var tsv=tsvLines.join("\n");
   copyDual(html, tsv, function(ok){ notify(ok?('복사 완료 ('+rowsIdx.length+'개 행, 헤더 포함). 붙여넣기(Ctrl+V)'):'복사 실패'); });
 }
@@ -79,7 +106,7 @@ function copySelection(vr){
   if(includeHeader){
     var hcells=[]; for(var c=c1;c<=c2;c++){ if(hiddenCols[COLS[c].key]) continue; hcells.push(colLabel(COLS[c])); }
     tsvLines.push(hcells.join("\t"));
-    htmlRows.push('<tr>'+hcells.map(function(t){return '<td style="background:'+HEADER_BG+';border:1px solid '+BORDER+';padding:4px 8px;font-family:Malgun Gothic,sans-serif;font-size:12px;text-align:center;">'+esc(t)+'</td>';}).join("")+'</tr>');
+    htmlRows.push('<tr>'+hcells.map(function(t){return '<td style="'+tdStyle({head:true})+'">'+esc(t)+'</td>';}).join("")+'</tr>');
   }
   for(var r=dr1;r<=r2;r++){
     var o=vr[r]; if(!o) continue;
@@ -91,20 +118,21 @@ function copySelection(vr){
       // 병합 시작?
       var mg=null; for(var mi=0;mi<merges.length;mi++){ if(merges[mi].c1===cc && merges[mi].c2<=c2){ mg=merges[mi]; break; } }
       if(mg){
-        var span=mg.c2-mg.c1+1;
-        var raw=cellRaw(o.row,col), disp=cellText(o.row,col);
-        tcells.push(raw.replace(/[\t\r\n]/g," "));
-        for(var k=1;k<span;k++) tcells.push(""); // 엑셀 붙여넣기용 빈칸
-        var stm='border:1px solid '+BORDER+';padding:4px 8px;font-family:Malgun Gothic,sans-serif;font-size:12px;text-align:center;'+(col.bold?'font-weight:700;':'');
-        hc.push('<td colspan="'+span+'" style="'+stm+'">'+esc(disp)+'</td>');
+        // 병합 구간에서 숨기지 않은 칸 수만큼만 복사 (열 지우기 반영)
+        var visSpan=0; for(var vs=mg.c1;vs<=mg.c2;vs++){ if(!hiddenCols[COLS[vs].key]) visSpan++; }
+        if(visSpan>0){
+          var raw=cellRaw(o.row,col), disp=cellText(o.row,col);
+          tcells.push(raw.replace(/[\t\r\n]/g," "));
+          for(var k=1;k<visSpan;k++) tcells.push(""); // 엑셀 붙여넣기용 빈칸
+          hc.push('<td colspan="'+visSpan+'" style="'+tdStyle({center:true,bold:col.bold})+'">'+esc(disp)+'</td>');
+        }
         cc=mg.c2+1;
       }else{
         var col2=COLS[cc];
         if(hiddenCols[col2.key]){ cc++; continue; }   // 숨긴 열은 복사 제외
         var raw2=cellRaw(o.row,col2), disp2=cellText(o.row,col2);
         tcells.push(raw2.replace(/[\t\r\n]/g," "));
-        var st='border:1px solid '+BORDER+';padding:4px 8px;font-family:Malgun Gothic,sans-serif;font-size:12px;'+(col2.center?'text-align:center;':'')+(col2.bold?'font-weight:700;':'')+(col2.link?'color:'+LINK+';':'');
-        hc.push('<td style="'+st+'">'+esc(disp2)+'</td>');
+        hc.push('<td style="'+tdStyle({center:col2.center,bold:col2.bold,link:col2.link})+'">'+esc(disp2)+'</td>');
         cc++;
       }
     }
@@ -113,10 +141,11 @@ function copySelection(vr){
   // 헤더부터 전체를 복사한 경우 안내문도 함께
   if(includeHeader && c1===0 && c2===COLS.length-1 && r2>=vr.length-1){
     var nt=currentNote();
+    var visCols=0; for(var vc2=0;vc2<COLS.length;vc2++){ if(!hiddenCols[COLS[vc2].key]) visCols++; }
     tsvLines.push(""); tsvLines.push(nt.replace(/\n/g," "));
-    htmlRows.push('<tr><td colspan="'+COLS.length+'" style="border:1px solid '+BORDER+';background:#F9E4E4;padding:8px 10px;font-family:Malgun Gothic,sans-serif;font-size:11px;white-space:pre-wrap;">'+esc(nt)+'</td></tr>');
+    htmlRows.push('<tr><td colspan="'+visCols+'" style="'+tdStyle({note:true})+'">'+esc(nt)+'</td></tr>');
   }
-  var tsv=tsvLines.join("\n"), html='<table style="border-collapse:collapse;">'+htmlRows.join("")+'</table>';
+  var tsv=tsvLines.join("\n"), html=mailTable(htmlRows.join(""));
   copyDual(html, tsv, function(ok){ notify(ok?('복사 완료 ('+tsvLines.length+'행 × '+(c2-c1+1)+'열'+(includeHeader?', 헤더 포함':'')+'). 붙여넣기(Ctrl+V)'):'복사 실패'); });
 }
 function copyDual(html, tsv, cb){
@@ -423,8 +452,9 @@ document.addEventListener("keydown",function(e){
   else if(mod && (e.key==="y"||e.key==="Y")){ redo(); e.preventDefault(); }
   else if(mod && (e.key==="a"||e.key==="A")){ var v4=viewRows(); sel={r1:-1,c1:0,r2:v4.length-1,c2:COLS.length-1}; render(); e.preventDefault(); }
   else if(e.key==="Delete"||e.key==="Backspace"){ var v5=viewRows(); if(sel){ clearSelection(v5); e.preventDefault(); } }
-  else if(mod && (e.key==="-"||e.key==="Subtract")){
-    // Ctrl+- : 열 선택이면 열 지우기, 행/다중 선택이면 행 삭제
+  else if(mod && (e.key==="-"||e.key==="Subtract"||e.code==="Minus"||e.code==="NumpadSubtract")){
+    // Ctrl+- : 브라우저 축소를 항상 막고, 선택이 있으면 행/열 삭제
+    e.preventDefault();
     var hasMulti = Object.keys(extraRows).some(function(k){ return Number(k)>=0; });
     if(sel || hasMulti){
       var colSel = sel && Math.min(sel.r1,sel.r2)<=-1 && !hasMulti;   // 헤더행부터 선택 = 열 선택
@@ -434,7 +464,8 @@ document.addEventListener("keydown",function(e){
       }else{
         var v7=viewRowsRaw(false); delSelectedRows(v7);
       }
-      e.preventDefault();
+    }else{
+      notify("삭제할 행 또는 열을 먼저 선택하세요");
     }
   }
   else if((e.key==="d"||e.key==="D")&&!mod){
