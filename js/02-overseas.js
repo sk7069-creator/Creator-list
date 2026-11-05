@@ -29,7 +29,8 @@ function currentNote(){ return activeTab==="us" ? OVERSEAS_NOTE : DOMESTIC_NOTE;
 // 국내 데이터 → 해외 데이터 변환 (병합정보 유지)
 function toOverseasData(arr){
   return (arr||[]).map(function(r){
-    var o={id:r.id, n:r.n, s1:toUSD(r.s1), s2:toUSD(r.s2), s3:toUSD(r.s3), fd:toUSD(r.fd), lf:toUSD(r.lf), ig:r.ig, tt:r.tt, yt:r.yt, grade:r.grade};
+    // ※ 필드를 새로 추가하면 반드시 여기에도 넣어야 합니다 (안 넣으면 해외 탭에서 그 값이 사라짐)
+    var o={id:r.id, n:r.n, s1:toUSD(r.s1), s2:toUSD(r.s2), s3:toUSD(r.s3), fd:toUSD(r.fd), lf:toUSD(r.lf), ig:r.ig, tt:r.tt, yt:r.yt, grade:r.grade, src:r.src};
     if(r._m) o._m=JSON.parse(JSON.stringify(r._m));
     return o;
   });

@@ -172,7 +172,7 @@ function fallbackCopy(html, tsv, cb){
 // ===== 3. 엑셀(.xlsx) 다운로드 — SheetJS로 진짜 xlsx 생성 (병합·서식 포함) =====
 function downloadXLSX(snapData, snapLabel){
   var src = snapData
-    ? (activeTab === "us" ? toOverseasData(snapData) : snapData)
+    ? (activeTab === "us" ? toOverseasData(snapData) : snapData).filter(listMatch)
     : currentData();
 
   // exceljs 있으면 서식 완비 버전, 없으면 SheetJS, 그것도 없으면 legacy
@@ -314,7 +314,7 @@ function downloadXLSX_styled(src, snapLabel){
 // 옛 방식 (SheetJS 로드 실패 시 폴백) — .xls SpreadsheetML
 function downloadXLSX_legacy(snapData, snapLabel){
   var src = snapData
-    ? (activeTab === "us" ? toOverseasData(snapData) : snapData)
+    ? (activeTab === "us" ? toOverseasData(snapData) : snapData).filter(listMatch)
     : currentData();
   var xmlRows=[];
   var hc=COLS.map(function(c){ return '<Cell ss:StyleID="hdr"><Data ss:Type="String">'+xesc(colLabel(c))+'</Data></Cell>'; }).join("");

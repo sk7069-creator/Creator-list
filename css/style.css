@@ -84,6 +84,10 @@ html,body{background:#f3f2ee;font-family:'Malgun Gothic','맑은 고딕',sans-se
 .xl-tab{font-family:inherit;font-size:12px;font-weight:600;padding:5px 14px;border:none;background:transparent;color:#666;cursor:pointer;border-radius:4px}
 .xl-tab:hover{color:#222}
 .xl-tab.on{background:#fff;color:#2E5CB8;box-shadow:0 1px 3px rgba(0,0,0,0.12)}
+.xl-ltabs{margin-left:6px}
+.xl-ltab{padding:5px 11px}
+.xl-ltab-n{display:inline-block;margin-left:5px;font-size:10.5px;font-weight:600;color:#999}
+.xl-ltab.on .xl-ltab-n{color:#2E5CB8}
 .xl-note{margin-top:8px;padding:12px 14px;background:#F9E4E4;border:1px solid #000;border-top:none;font-size:11.5px;line-height:1.7;white-space:pre-wrap;color:#333}
 .xl-btn-link{text-decoration:none;display:inline-flex;align-items:center}
 .xl-undogroup{display:inline-flex;gap:2px;margin-left:10px}

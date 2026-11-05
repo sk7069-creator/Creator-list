@@ -8,6 +8,19 @@ var LS_SNAP="agent_excel_sheetsnap_v1"; // 마지막으로 확인한 시트 스�
 var SHEET_CSV_URL="/api/sheet?which=current";
 var SHEET_POLL_MS=15000; // 15초마다 시트 변경 확인
 
+// ===== 시트 탭 (전속 · 파트너 · 전체) =====
+// 시트의 세 탭을 "있는 그대로" 각각 받아옵니다. 합치거나 다시 정렬하지 않습니다
+// — 탭 구성·행 순서가 영업상 의도(전속 강조)라서 시트 모양을 그대로 보여줍니다.
+// 서버(api/sheet.js)가 which=own / partner / all 로 각 탭 CSV를 전달합니다.
+var SHEET_SOURCES=[
+  {which:"own",     src:"own",     grade:"1", label:"전속"},
+  {which:"partner", src:"partner", grade:"0", label:"파트너"},
+  {which:"all",     src:"all",     grade:"",  label:"전체"}
+];
+var LS_LIST="agent_excel_list_v1";
+// 전체 탭 CSV가 아직 없을 때만, 전속+파트너를 합쳐 '전체'를 임시로 만들어 둡니다.
+var ALL_FALLBACK=true;
+
 var COLS=[
   {key:"n",  label:"크리에이터명", w:120, type:"text", center:true,  bold:true},
   {key:"s1", label:"숏폼 1채널",  w:80,  type:"num",  center:true,  bold:true},

@@ -96,7 +96,8 @@ function showSnapshotModal() {
     '<div style="padding:20px">' +
       '<div style="font-size:12.5px;color:#555;line-height:1.7;margin-bottom:16px">' +
         '기준 일자를 선택하면 해당 날짜 <b>23:59 시점</b>의 단가로 받습니다.<br>' +
-        '<span style="color:#999">현재 탭: ' + (activeTab === "us" ? "해외 (USD)" : "국내 (만원)") + '</span>' +
+        '<span style="color:#999">현재 탭: ' + (activeTab === "us" ? "해외 (USD)" : "국내 (만원)") +
+          ' · ' + (activeList === "own" ? "전속" : (activeList === "partner" ? "파트너" : "전체")) + '</span>' +
       '</div>' +
       '<label style="display:block;font-size:11px;color:#8a8375;font-weight:700;letter-spacing:.05em;margin-bottom:6px">기준 일자</label>' +
       '<input type="date" id="xl-snap-date" value="' + todayStr + '" max="' + todayStr + '" ' +

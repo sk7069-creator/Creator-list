@@ -65,16 +65,36 @@ function fmtNum(v){ var n=num(v); return n===""?"":n.toLocaleString(); }
 function cellText(row,col){ return col.type==="num"?fmtNum(row[col.key]):String(row[col.key]==null?"":row[col.key]); }
 function cellRaw(row,col){ if(col.type==="num"){var n=num(row[col.key]);return n===""?"":String(n);} return String(row[col.key]==null?"":row[col.key]); }
 
-var activeTab="kr"; // "kr" | "us"
+var activeTab="kr"; // "kr" | "us"  (국내 / 해외)
+var activeList=loadList(); // "all" | "own" | "partner"  (전체 / 전속 / 파트너)
+function loadList(){ try{ var v=localStorage.getItem(LS_LIST); return (v==="own"||v==="partner")?v:"all"; }catch(e){ return "all"; } }
+function saveList(){ try{ localStorage.setItem(LS_LIST, activeList); }catch(e){} }
+// 행이 어느 시트 탭에서 왔는지 — src가 없는 구버전 저장본은 등급(0=파트너)으로 판단
+function rowList(r){
+  if(r && r.src) return r.src;
+  return "all"; // src가 없는 구버전 저장본은 전체 탭으로 간주
+}
+// 시트 탭이 곧 보기 단위 — 전체 탭도 시트에서 그대로 받은 행만 보여줍니다
+function listMatch(r){ return rowList(r)===activeList; }
+function listCount(which){
+  var n=0; (data||[]).forEach(function(r){ if(rowList(r)===which) n++; });
+  return n;
+}
 function colLabel(c){ return activeTab==="us" ? (OVERSEAS_HEADERS[c.key]||c.label) : c.label; }
-function currentData(){ return activeTab==="us" ? toOverseasData(data) : data; }
+// 화면/복사/내보내기에 쓰이는 데이터 = 국내·해외 변환 + 전속/파트너 필터
+function currentData(){
+  var src=activeTab==="us" ? toOverseasData(data) : data;
+  return src.filter(function(r,i){ return listMatch(data[i]); });
+}
 function viewRows(){
   return viewRowsRaw(true);
 }
 // includeSearch=false면 검색 필터를 적용하지 않음 (render는 전체를 그리고 CSS로 숨김)
 function viewRowsRaw(includeSearch){
-  var src=currentData();
-  var rows=src.map(function(r,i){ return {row:r, di:i}; });
+  // di는 반드시 원본 data의 인덱스여야 함 (편집·삭제가 di로 data를 직접 고치므로)
+  var src=activeTab==="us" ? toOverseasData(data) : data;
+  var rows=[];
+  for(var _i=0;_i<src.length;_i++){ if(listMatch(data[_i])) rows.push({row:src[_i], di:_i}); }
   if(includeSearch && searchQ){ var q=searchQ.toLowerCase(); rows=rows.filter(function(o){ return String(o.row.n||"").toLowerCase().indexOf(q)>=0; }); }
   if(sortState.key&&sortState.dir){
     var col=null; COLS.forEach(function(c){ if(c.key===sortState.key) col=c; });

@@ -1,4 +1,5 @@
 /* AG-ENT 크리에이터 단가표 — 표 렌더링 · 선택 · 편집 · 병합 */
+var LIST_TABS=[{key:"all",label:"전체"},{key:"own",label:"전속"},{key:"partner",label:"파트너"}];
 function render(){
   var vr=viewRowsRaw(false);
   var totalW=COLS.reduce(function(a,c){return a+c.w;},0)+40;
@@ -11,7 +12,14 @@ function render(){
   h.push('<button class="xl-tab'+(activeTab==="kr"?" on":"")+'" data-tab="kr">국내 (만원)</button>');
   h.push('<button class="xl-tab'+(activeTab==="us"?" on":"")+'" data-tab="us">해외 (USD)</button>');
   h.push('</span>');
-  h.push('<span class="xl-count">'+data.length+'명'+(searchQ?(' · 검색 '+vr.length):'')+(activeTab==="us"?' · 환율 '+USD_RATE.toLocaleString():'')+'</span>');
+  // ── 시트 탭: 전체 / 전속 / 파트너 (국내·해외와 독립적으로 동작) ──
+  h.push('<span class="xl-tabs xl-ltabs">');
+  LIST_TABS.forEach(function(t){
+    h.push('<button class="xl-tab xl-ltab'+(activeList===t.key?" on":"")+'" data-list="'+t.key+'">'
+      +t.label+'<span class="xl-ltab-n">'+listCount(t.key)+'</span></button>');
+  });
+  h.push('</span>');
+  h.push('<span class="xl-count">'+vr.length+'명'+(searchQ?(' · 검색 '+viewRowsRaw(true).length):'')+(activeTab==="us"?' · 환율 '+USD_RATE.toLocaleString():'')+'</span>');
   h.push('<span class="xl-undogroup">');
   h.push('<button class="xl-ubtn" id="xl-undo" title="실행취소 (Ctrl+Z)">↶</button>');
   h.push('<button class="xl-ubtn" id="xl-redo" title="다시실행 (Ctrl+Y)">↷</button>');
@@ -182,6 +190,18 @@ function bind(vr){
       if(t===activeTab) return;
       activeTab=t; sel=null; editingCell=null; render();
       notify(t==="us"?("해외 단가 (USD · 환율 "+USD_RATE.toLocaleString()+" · 수수료 15% · 10달러 단위 올림)"):"국내 단가 (만원)");
+    };
+  }
+  var ltabs=root.querySelectorAll(".xl-ltab");
+  for(var li=0;li<ltabs.length;li++){
+    ltabs[li].onclick=function(){
+      var t=this.getAttribute("data-list");
+      if(t===activeList) return;
+      activeList=t; saveList();
+      sel=null; extraRows={}; editingCell=null; editingHeader=null;
+      render();
+      var nm=(t==="own")?"전속 리스트":((t==="partner")?"파트너 리스트":"전체 리스트");
+      notify(nm+" ("+listCount(t)+"명)");
     };
   }
   var rf=byId("xl-refresh"); if(rf) rf.onclick=function(){ notify("마스터 시트 확인 중..."); fetchSheet(false, true); };

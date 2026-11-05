@@ -108,21 +108,87 @@ function csvToData(text){
   return out;
 }
 
+// ===== 여러 시트 탭(전속 · 파트너)을 한 번에 받아 하나로 합치기 =====
+// 시트의 '전체 리스트' 탭은 안 씁니다 — 전속+파트너를 합친 결과와 같기 때문.
+function fetchSheetText(which){
+  var u="/api/sheet?which="+encodeURIComponent(which)+"&_t="+Date.now();
+  return fetch(u,{cache:"no-store"}).then(function(r){
+    if(!r.ok) return null;           // 환경변수 미설정(404) 등 → 그 탭만 건너뜀
+    return r.text();
+  }).catch(function(){ return null; });
+}
+// 숏폼 단가(1~3채널 중 최대) — 합친 뒤 정렬 기준
+function shortPrice(r){ return Math.max(num(r.s1)||0, num(r.s2)||0, num(r.s3)||0); }
+function newestStamp(list){
+  var best="", bestN=null;
+  (list||[]).forEach(function(v){
+    var n=parseStamp(v);
+    if(best==="" || (n!==null && (bestN===null || n>bestN))){ best=v; bestN=n; }
+  });
+  return best;
+}
+function loadMergedSheets(){
+  return Promise.all(SHEET_SOURCES.map(function(s){ return fetchSheetText(s.which); }))
+  .then(function(texts){
+    var out=[], stamps=[], note="", ok=0, failed=[], byTab={};
+    texts.forEach(function(text,i){
+      var s=SHEET_SOURCES[i];
+      if(!text){ failed.push(s.label); return; }
+      var d=csvToData(text);
+      if(!d||!d.length){ failed.push(s.label); return; }
+      ok++;
+      if(d._stamp) stamps.push(d._stamp);
+      if(d._note && !note) note=d._note;
+      d.forEach(function(r){ r.src=s.src; if(r.grade===""||r.grade==null) r.grade=s.grade; });
+      byTab[s.src]=d;
+      // 시트 탭 순서·행 순서 그대로 (합치거나 재정렬하지 않음)
+      out=out.concat(d);
+    });
+    if(!ok) return null;
+
+    // 전체 탭 CSV가 아직 없으면 전속+파트너로 임시 생성 (환경변수 넣기 전 임시 동작)
+    if(ALL_FALLBACK && !byTab.all && (byTab.own||byTab.partner)){
+      var fb=[].concat(byTab.own||[], byTab.partner||[]).map(function(r){
+        var c=assign({},r); c.src="all"; return c;
+      });
+      fb.sort(function(a,b){ return shortPrice(b)-shortPrice(a); });
+      out=out.concat(fb);
+    }
+
+    // 전체 탭에는 등급(K열)이 없음 → 전속/파트너 탭의 이름으로 전속 여부를 채워줌
+    var gradeByName={};
+    ["own","partner"].forEach(function(k){
+      (byTab[k]||[]).forEach(function(r){ gradeByName[r.n]=(k==="own")?"1":"0"; });
+    });
+    out.forEach(function(r){
+      if(r.src==="all" && (r.grade===""||r.grade==null) && gradeByName[r.n]!=null) r.grade=gradeByName[r.n];
+    });
+
+    out.forEach(function(r,i){ r.id="sheet_"+r.src+"_"+String(r.n).replace(/\s/g,"_")+"_"+i; });
+    out._stamp=newestStamp(stamps);
+    out._note=note;
+    out._failed=failed;
+    return out;
+  });
+}
+
 // 두 데이터셋 비교 → 변경 목록 [{name, field, before, after}]
 function diffData(oldArr, newArr){
   var changes=[];
-  var oldByName={}; (oldArr||[]).forEach(function(r){ oldByName[r.n]=r; });
-  var newByName={}; (newArr||[]).forEach(function(r){ newByName[r.n]=r; });
+  // 같은 크리에이터가 전속·전체 두 탭에 모두 있으므로 (탭 + 이름)으로 짝지어야 함
+  function kk(r){ return (r.src||"all")+"|"+r.n; }
+  var oldByName={}; (oldArr||[]).forEach(function(r){ oldByName[kk(r)]=r; });
+  var newByName={}; (newArr||[]).forEach(function(r){ newByName[kk(r)]=r; });
   var FIELDS=[["s1","숏폼 1채널"],["s2","2채널"],["s3","3채널"],["fd","피드"],["lf","롱폼"],["ig","인스타그램"],["tt","틱톡"],["yt","유튜브"]];
   newArr.forEach(function(nw){
-    var od=oldByName[nw.n];
+    var od=oldByName[kk(nw)];
     if(!od){ changes.push({name:nw.n, field:"", before:"", after:"", kind:"신규 추가(시트)"}); return; }
     FIELDS.forEach(function(f){
       var a=String(od[f[0]]==null?"":od[f[0]]), b=String(nw[f[0]]==null?"":nw[f[0]]);
       if(a!==b) changes.push({name:nw.n, field:f[1], before:a, after:b, kind:"edit"});
     });
   });
-  (oldArr||[]).forEach(function(od){ if(!newByName[od.n]) changes.push({name:od.n, field:"", before:"", after:"", kind:"시트에서 삭제됨"}); });
+  (oldArr||[]).forEach(function(od){ if(!newByName[kk(od)]) changes.push({name:od.n, field:"", before:"", after:"", kind:"시트에서 삭제됨"}); });
   return changes;
 }
 
@@ -172,23 +238,22 @@ function fetchSheet(isFirst, isManual){
   if(fetching){ if(isManual) notify("확인 중입니다..."); return; }
   if(pendingSheet && !isFirst && !isManual) return;
   fetching=true;
-  var url=SHEET_CSV_URL+(SHEET_CSV_URL.indexOf("?")>=0?"&":"?")+"_t="+Date.now();
-  fetch(url, {cache:"no-store"}).then(function(r){
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    return r.text();
-  }).then(function(text){
+  loadMergedSheets().then(function(newData){
     fetching=false;
-    var newData=csvToData(text);
     if(!newData||!newData.length){
       if(isFirst) render();
-      if(isManual) showDiag("시트를 읽었지만 데이터가 없습니다.", "받은 내용 앞부분:\n"+text.slice(0,300));
+      if(isManual) showDiag("시트를 읽지 못했습니다.",
+        "각 탭의 CSV 주소가 서버에 설정돼 있는지 확인해 주세요.\n\nVercel 환경변수:\n· SHEET_OWN_CSV (전속 리스트 탭)\n· SHEET_PARTNER_CSV (파트너 리스트 탭)\n· SHEET_ALL_CSV (전체 리스트 탭)");
       return;
+    }
+    if(newData._failed && newData._failed.length && isManual){
+      notify(newData._failed.join("·")+" 탭을 못 읽었습니다. 나머지만 표시합니다.");
     }
     var snap=loadSnap();
     if(!snap){
       data=preserveTempCols(newData).map(function(x){ return assign({},x); });
       saveData(); saveSnap(newData); if(newData._stamp) saveStamp(newData._stamp); render();
-      notify("구글 시트에서 "+newData.length+"명 불러왔습니다.");
+      notify("구글 시트에서 불러왔습니다. 전속 "+listCount("own")+" · 파트너 "+listCount("partner")+" · 전체 "+listCount("all")+"명");
       return;
     }
     var changes=diffData(snap, newData);
@@ -236,9 +301,7 @@ function showDiag(title, body){
 function resetToSheet(){
   if(!confirm("도구에서 수정한 내용을 모두 버리고\n마스터 시트의 최신 내용으로 되돌립니다.\n\n계속할까요?")) return;
   notify("마스터 시트에서 다시 불러오는 중...");
-  var url=SHEET_CSV_URL+(SHEET_CSV_URL.indexOf("?")>=0?"&":"?")+"_t="+Date.now();
-  fetch(url, {cache:"no-store"}).then(function(r){ return r.text(); }).then(function(text){
-    var newData=csvToData(text);
+  loadMergedSheets().then(function(newData){
     if(!newData||!newData.length){ notify("시트를 읽지 못했습니다. 잠시 후 다시 시도하세요."); return; }
     snapshot(); // Ctrl+Z로 되돌릴 수 있게
     data=preserveTempCols(newData).map(function(x){ return assign({},x); });
