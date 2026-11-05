@@ -14,6 +14,21 @@ function loadData(){
           return SEED.map(function(x,i){ return autoMerge(assign({}, x, {id:x.id||("c"+i)})); });
         }
         try{ localStorage.setItem(LS_KEY+"_gv","1"); }catch(e){}
+        // 시트 탭(전속/파트너/전체) 도입 전 저장본은 src 필드가 없음 → 전부 '전체'로 잡혀
+        // 전속·파트너가 0명으로 보임. 저장본·스냅샷·수정시각을 통째로 비워서
+        // 시트에서 세 탭을 새로 받게 함 (수정시각이 같아도 무조건 다시 받도록)
+        var sver=localStorage.getItem(LS_KEY+"_sv");
+        var hasSrcField=p.some(function(x){ return x && typeof x.src!=="undefined"; });
+        if(sver!=="1" && !hasSrcField){
+          try{
+            localStorage.removeItem(LS_KEY);
+            localStorage.removeItem(LS_SNAP);          // 변경 비교 기준선 제거
+            localStorage.removeItem(LS_KEY+"_stamp");  // 수정시각 가드 해제
+            localStorage.setItem(LS_KEY+"_sv","1");
+          }catch(e){}
+          return SEED.map(function(x,i){ return autoMerge(assign({}, x, {id:x.id||("c"+i)})); });
+        }
+        try{ localStorage.setItem(LS_KEY+"_sv","1"); }catch(e){}
         // 구버전 저장 데이터(병합정보 없음)는 1회만 자동 병합 적용
         var ver=localStorage.getItem(LS_KEY+"_mv");
         if(ver!=="1"){
